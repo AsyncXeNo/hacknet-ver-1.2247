@@ -1,0 +1,18 @@
+{
+    "editor.minimap.enabled": false,
+    "vim.leader": " ",
+    "vim.useSystemClipboard": true,
+    "vim.hlsearch": true,
+    "vim.easymotion": true,
+    "editor.unicodeHighlight.nonBasicASCII": false,
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        ".venv": true,
+        "uv.lock": true,
+        "**/__pycache__": true,
+    }
+}
