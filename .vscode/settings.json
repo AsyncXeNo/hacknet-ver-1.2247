@@ -1,9 +1,40 @@
 {
     "editor.minimap.enabled": false,
-    "vim.leader": " ",
-    "vim.useSystemClipboard": true,
     "vim.hlsearch": true,
     "vim.easymotion": true,
+    "vim.leader": "<space>",
+    "vim.useSystemClipboard": true,
+    "vim.normalModeKeyBindings": [
+    {
+      "before": ["<leader>", "r", "n"],
+      "commands": ["editor.action.rename"]
+    },
+    {
+      "before": ["K"],
+      "commands": ["lineBreakInsert"],
+      "silent": true
+    },
+    {
+      "before": ["<leader>", "g", "d"],
+      "commands": ["editor.action.revealDefinition"],
+    },
+    {
+      "before": ["<leader>", "a", "a"],
+      "commands": ["shiftArgumentRight"]
+    },
+        {
+      "before": ["<leader>", "A", "A"],
+      "commands": ["shiftArgumentLeft"]
+    }
+    ],
+    "vim.handleKeys": {
+    "<C-p>": false,
+    "<C-d>": true,
+    "<C-s>": false,
+    "<C-z>": false,
+    },
+    "vim.camelCaseMotion.enable": true,
+    "vim.targets.enable": true,
     "editor.unicodeHighlight.nonBasicASCII": false,
     "files.exclude": {
         "**/.git": true,
