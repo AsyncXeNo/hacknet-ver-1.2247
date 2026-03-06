@@ -11,3 +11,6 @@ class Computer(object):
         self.apps = apps
         self.mac_id = mac_id
         pass
+
+class ComputerNetworkAdapter(object):
+    pass
