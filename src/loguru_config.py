@@ -44,8 +44,7 @@ def configure_master_logger() -> str:
                level='TRACE',
                encoding='utf-8',
                rotation='1 day',
-               retention='1 month',
-               compression='gz')
+               retention='1 month')
 
     return os.path.abspath(log_dir)
 
@@ -74,8 +73,7 @@ def configure_thread_logger() -> str | None:
                              level='TRACE',
                              encoding='utf-8',
                              rotation='1 day',
-                             retention='1 month',
-                             compression='gz')
+                             retention='1 month')
         thread_sink_ids[thread_id] = sink_id
 
     return os.path.abspath(log_dir)

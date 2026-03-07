@@ -86,18 +86,25 @@ class ConsumerRouter(Router):
 
 
     def send_packet(self, packet):
+        is_loopback = is_ip_in_domain(packet.dest.addr, self.LOOPBACK)
+        assert not is_loopback, "How the fuck"
+
         if is_ip_in_domain(packet.dest.addr, self.FORBIDDEN_RANGE):
             self.wrong_range_packet(packet)
             return
 
+        is_public_ip = packet.dest.addr == self.ip_address
+        is_private_domain = is_ip_in_domain(packet.dest.addr, self.PRIVATE_RANGE)
+
         # To internal
-        if packet.dest.addr == self.ip_address or is_ip_in_domain(packet.dest.addr, self.PRIVATE_RANGE):
+        if is_public_ip or is_private_domain:
             if packet.dest.addr == self.PRIVATE_IP:
                 self.send_packet(self.process_packet(packet))
             elif not packet.response:
                 self.internal_request_packet(packet)
             elif packet.response:
                 self.internal_response_packet(packet)
+
         # To external
         else:
             if not packet.response:

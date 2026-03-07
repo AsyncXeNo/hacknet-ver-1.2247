@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from .base import Router, is_ip_in_domain, SocketAddr, CIDR, Packet
+from .base import Router, is_ip_in_domain, SocketAddr, CIDR, Packet, Domain
 
 if TYPE_CHECKING:
     from typing import List, Optional
@@ -38,9 +38,8 @@ class InternetRouter(Router):
         assert False, 'Internet Router cannot be disabled.'
 
     def send_packet(self, packet: Packet):
-        if packet.dest.addr == self.ip_address or is_ip_in_domain(packet.dest.addr, CIDR((127,0,0,0), 8)):
-            self.send_packet(self.process_packet(packet))
-            return
+        is_loopback = is_ip_in_domain(packet.dest.addr, self.LOOPBACK)
+        assert not is_loopback, "How the fuck"
         
         for child in self.children:
             child_is_right = (child.ip_address == packet.dest.addr)
@@ -58,8 +57,10 @@ class InternetRouter(Router):
 
 
 class ISPRouter(Router):
+
     def __init__(self, parent: InternetRouter, children: List[ConsumerRouters] = None, enabled: bool = True):
         assert parent or not enabled, "ISP routers cannot be turned on without a connection to the internet"
+        self.blacklist: List[IPv4Addr] = [(0,1,1,0)]
         children = children or []
         self.subrange: Optional[CIDR] = parent.request_subrange() if enabled else None
         super().__init__(parent, children, enabled)
@@ -83,6 +84,11 @@ class ISPRouter(Router):
             else:
                 return current_ip
 
+    def add_to_blacklist(self, address: IPv4Addr):
+        is_loopback = is_ip_in_domain(address, self.LOOPBACK)
+        assert not is_loopback, "How the fuck"
+        self.blacklist.append(address)
+
     def domain_range(self) -> Optional[CIDR]:
         return self.subrange if self.enabled else None
     
@@ -96,11 +102,23 @@ class ISPRouter(Router):
         self.subrange = None
 
     def send_packet(self, packet: Packet):
-        if packet.dest.addr == self.ip_address or is_ip_in_domain(packet.dest.addr, CIDR((127,0,0,0), 8)):
-            self.send_packet(self.process_packet(packet))
+        is_loopback = is_ip_in_domain(packet.dest.addr, self.LOOPBACK)
+        assert not is_loopback, "How the fuck"
+
+        if packet.dest.addr in self.blacklist:
+            SA = SocketAddr
+            return_packet = Packet(SA(self.ip_address, 
+                                      self.get_unassigned_port()), 
+                                      packet.source, 
+                                      b"MAGICBanned", 
+                                      True)
+            self.send_packet(return_packet)
             return
         
         if (is_ip_in_domain(packet.dest.addr, self.domain_range())):
+            if packet.dest.addr == self.ip_address:
+                self.send_packet(self.process_packet(packet))
+                return
             for child in self.children:
                 child_is_right = (child.ip_address == packet.dest.addr)
                 if child_is_right:

@@ -7,7 +7,7 @@ from typing import Tuple, Optional, List
 from dataclasses import dataclass
 
 if TYPE_CHECKING:
-    from typing import TypeAlias, Tuple, Optional, List
+    from typing import TypeAlias, Tuple, Optional, List, Dict
     from node import ComputerNetworkAdapter
 
 import random
@@ -17,16 +17,20 @@ Node: TypeAlias = 'Router | ComputerNetworkAdapter'
 IPv4Addr: TypeAlias = Tuple[int, int, int, int]
 Port: TypeAlias = int
 Bidict: TypeAlias = bidict
+Domain: TypeAlias = str
+
 
 @dataclass(eq=True, frozen=True)
 class CIDR(object):
     domain: IPv4Addr
     fixed: int
 
+
 @dataclass(eq=True, frozen=True)
 class SocketAddr(object):
     addr: IPv4Addr
     port: Port
+
 
 def is_ip_in_domain(ip: IPv4Addr, domain: CIDR):
     fixed = domain.fixed
@@ -48,6 +52,7 @@ class RouterPacketProcessor(object):
         ICMP = "ICMP"
         HTTP = "HTTP"
         MAGIC = "MAGIC"
+        DNS = "DNS"
 
     @classmethod
     def process_packet(cls, router: Router, packet: Packet) -> Packet:
@@ -76,6 +81,17 @@ class RouterPacketProcessor(object):
             raw_message = decoded_message.removeprefix(Prot.HTTP.value)
             if raw_message.upper() == "GET":
                 raise NotImplementedError("HTTP not implemented")
+        
+        elif decoded_message.startswith(Prot.DNS.value):
+            raw_message = decoded_message.removeprefix(Prot.DNS.value)
+            raw_message = raw_message.strip().strip(' ').strip('/')
+            if raw_message.count('.') > 1 and raw_message.startswith('www.'):
+                raw_message = raw_message.strip('www.')
+            if raw_message in router.dns_record:
+                address = '.'.join(map(str, router.dns_record[raw_message]))
+                return_message = str.encode(f"{Prot.DNS.value}{address}")
+            else:
+                return_message = str.encode(f"{Prot.MAGIC.value}DNS not found")
 
         return_message = return_message or b"MAGICCannot process"
             
@@ -86,7 +102,9 @@ class RouterPacketProcessor(object):
         
 
 class Router(ABC):
+    LOOPBACK: CIDR = CIDR((127,0,0,0), 8)
     def __init__(self, parent: Optional[Router], children: List[Node] = None, enabled: bool = True) -> None:
+        self.dns_record: Dict[Domain, IPv4Addr] = dict()
         self.parent: Router | None = parent
         self.children = children or []
         self.enabled: bool = enabled
@@ -135,6 +153,19 @@ class Router(ABC):
 
     def process_packet(self, packet: Packet) -> Packet:
         return RouterPacketProcessor.process_packet(self, packet)
+    
+    def map_domain(self, domain: Domain, address: IPv4Addr):
+        self.dns_record[domain] = address
+
+    def del_domain(self, domain: Domain):
+        if domain not in self.dns_record: return
+        del self.dns_record[domain]
+
+    def flood_dns(self):
+        for child in self.children:
+            if isinstance(child, Router):
+                child.dns_record = self.dns_record | child.dns_record
+                child.flood_dns()
 
 
 class Packet(object):
