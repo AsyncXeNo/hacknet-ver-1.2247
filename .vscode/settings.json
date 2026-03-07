@@ -2,38 +2,38 @@
     "editor.minimap.enabled": false,
     "vim.hlsearch": true,
     "vim.easymotion": true,
-    "vim.leader": "<space>",
-    "vim.useSystemClipboard": true,
-    "vim.normalModeKeyBindings": [
-    {
+    "vim.leader": " ",
+    "vim.usesystemclipboard": true,
+      "vim.normalModeKeyBindings": [
+      {
       "before": ["<leader>", "r", "n"],
       "commands": ["editor.action.rename"]
-    },
-    {
-      "before": ["K"],
-      "commands": ["lineBreakInsert"],
+      },
+      {
+      "before": ["k"],
+      "commands": ["linebreakinsert"],
       "silent": true
-    },
-    {
+      },
+      {
       "before": ["<leader>", "g", "d"],
-      "commands": ["editor.action.revealDefinition"],
-    },
-    {
+      "commands": ["editor.action.revealdefinition"],
+      },
+      {
       "before": ["<leader>", "a", "a"],
-      "commands": ["shiftArgumentRight"]
+      "commands": ["shiftargumentright"]
+      },
+          {
+      "before": ["<leader>", "a", "a"],
+      "commands": ["shiftargumentleft"]
+      }
+      ],
+    "vim.handlekeys": {
+    "<c-p>": false,
+    "<c-d>": true,
+    "<c-s>": false,
+    "<c-z>": false,
     },
-        {
-      "before": ["<leader>", "A", "A"],
-      "commands": ["shiftArgumentLeft"]
-    }
-    ],
-    "vim.handleKeys": {
-    "<C-p>": false,
-    "<C-d>": true,
-    "<C-s>": false,
-    "<C-z>": false,
-    },
-    "vim.camelCaseMotion.enable": true,
+    "vim.camelcasemotion.enable": true,
     "vim.targets.enable": true,
     "editor.unicodeHighlight.nonBasicASCII": false,
     "files.exclude": {
