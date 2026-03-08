@@ -92,7 +92,7 @@ class ConsumerRouter(Router, metaclass=ABCMeta):
     def external_response_packet(self, packet: Packet):
         assert self.ip_address is not None
         assert self.parent is not None
-        port = self.port_forwarding.inv.get(packet.dest)
+        port = self.port_forwarding.inv.get(packet.source)
         packet.source = SocketAddr(self.ip_address, port)
         self.parent.send_packet(packet)
 
@@ -100,6 +100,10 @@ class ConsumerRouter(Router, metaclass=ABCMeta):
     def send_packet(self, packet):
         is_loopback = is_ip_in_domain(packet.dest.addr, self.LOOPBACK)
         assert not is_loopback, "How the fuck"
+
+        for nat in self.nat_table.copy():
+            if game_timer.get_time() >= self.nat_table[nat][1]:
+                del self.nat_table[nat]
 
         if is_ip_in_domain(packet.dest.addr, self.FORBIDDEN_RANGE):
             self.wrong_range_packet(packet)
@@ -142,10 +146,6 @@ class ConsumerRouter(Router, metaclass=ABCMeta):
         return num
 
     def add_to_NAT(self, socket_addr: SocketAddr) -> Port:
-        for nat in self.nat_table.copy():
-            if game_timer.get_time() >= self.nat_table[nat][1]:
-                del self.nat_table[nat]
-
         port = self.get_unassigned_port()
         logger.debug(f"✔ NAT {self.ip_address}:{port} -> {socket_addr}")
         expires_at = game_timer.get_time() + GameTimer.calc_deltatime(minutes=5)

@@ -128,201 +128,6 @@ def network():
     )
 
 
-def test_packet_send_same_router_sibling(network):
-    """Send a packet between two users on the same home router (user2 -> user3, both on home1)."""
-    packet = Packet(
-        source=SocketAddr(network.user2.ip_address, 5000),
-        dest=SocketAddr(network.user3.ip_address, 8080),
-        message=b"ICMPPing",
-        response=False,
-    )
-    network.home1.send_packet(packet)
-    assert len(network.user3.received) == 1
-    assert network.user3.received[0].message == b"ICMPPing"
-
-
-def test_packet_send_across_isps(network):
-    """Send a packet between users on different ISPs (user2 on isp1 -> user6 on isp2)."""
-    network.home2.forward(1000, SocketAddr(network.user6.ip_address,9000))
-    packet = Packet(
-        source=SocketAddr(network.user2.ip_address, 5000),
-        dest=SocketAddr(network.home2.ip_address, 1000),
-        message=b"ICMPPing",
-        response=False,
-    )
-    network.home1.send_packet(packet)
-    assert len(network.user6.received) == 1
-    assert network.user6.received[0].message == b"ICMPPing"
-
-
-def test_packet_send_home_to_business(network):
-    """Send a packet from a home user to a business user across ISPs."""
-    network.business1.forward(7000, SocketAddr(network.user1.ip_address, 7000))
-    packet = Packet(
-        source=SocketAddr(network.user2.ip_address, 5000),
-        dest=SocketAddr(network.business1.ip_address, 7000),
-        message=b"ICMPPing",
-        response=False,
-    )
-    network.home1.send_packet(packet)
-    assert len(network.user1.received) == 1
-    assert network.user1.received[0].message == b"ICMPPing"
-
-
-def test_packet_send_business_to_home(network):
-    """Send a packet from a business user to a home user on a different ISP."""
-    network.home1.forward(3000, SocketAddr(network.user2.ip_address, 3000))
-    packet = Packet(
-        source=SocketAddr(network.user4.ip_address, 5000),
-        dest=SocketAddr(network.home1.ip_address, 3000),
-        message=b"ICMPPing",
-        response=False,
-    )
-    network.business2.send_packet(packet)
-    assert len(network.user2.received) == 1
-    assert network.user2.received[0].message == b"ICMPPing"
-
-
-def test_ping_router_gets_pong(network):
-    """Ping a router directly and expect an ICMPPong response via NAT."""
-    packet = Packet(
-        source=SocketAddr(network.user2.ip_address, 5000),
-        dest=SocketAddr(network.isp1.ip_address, 80),
-        message=b"ICMPPing",
-        response=False,
-    )
-    network.home1.send_packet(packet)
-    assert len(network.user2.received) == 1
-    assert network.user2.received[0].message == b"ICMPPong"
-
-
-def test_ping_across_many_hops(network):
-    """Send a packet from isp1/home1 user to isp4/home13 user (max hops)."""
-    network.home13.forward(4000, SocketAddr(network.user26.ip_address, 4000))
-    packet = Packet(
-        source=SocketAddr(network.user2.ip_address, 5000),
-        dest=SocketAddr(network.home13.ip_address, 4000),
-        message=b"ICMPPing",
-        response=False,
-    )
-    network.home1.send_packet(packet)
-    assert len(network.user26.received) == 1
-    assert network.user26.received[0].message == b"ICMPPing"
-
-
-def test_send_multiple_packets_to_same_dest(network):
-    """Send multiple packets to the same destination."""
-    network.home2.forward(9000, SocketAddr(network.user6.ip_address, 9000))
-    for i in range(5):
-        packet = Packet(
-            source=SocketAddr(network.user2.ip_address, 5000 + i),
-            dest=SocketAddr(network.home2.ip_address, 9000),
-            message=f"ICMPPing{i}".encode(),
-            response=False,
-        )
-        network.home1.send_packet(packet)
-    assert len(network.user6.received) == 5
-    for i in range(5):
-        assert network.user6.received[i].message == f"ICMPPing{i}".encode()
-
-
-def test_send_packet_nonexistent_dest(network):
-    """Send a packet to an IP that doesn't exist - should get error back."""
-    fake_ip = (-1, -1, -1, -1)
-    packet = Packet(
-        source=SocketAddr(network.user2.ip_address, 5000),
-        dest=SocketAddr(fake_ip, 9000),
-        message=b"ICMPPing",
-        response=False,
-    )
-    network.home1.send_packet(packet)
-    assert len(network.user2.received) == 1
-    assert network.user2.received[0].message == b"MAGICDestination not found"
-
-
-def test_business_to_business_same_isp(network):
-    """Send between two business users on the same ISP (isp4)."""
-    network.business5.forward(9000, SocketAddr(network.user18.ip_address, 9000))
-    packet = Packet(
-        source=SocketAddr(network.user16.ip_address, 5000),
-        dest=SocketAddr(network.business5.ip_address, 9000),
-        message=b"ICMPPing",
-        response=False,
-    )
-    network.business4.send_packet(packet)
-    assert len(network.user18.received) == 1
-    assert network.user18.received[0].message == b"ICMPPing"
-
-
-def test_bidirectional_ping(network):
-    """Send a ping in both directions between two users."""
-    network.home2.forward(9000, SocketAddr(network.user6.ip_address, 9000))
-    network.home1.forward(5000, SocketAddr(network.user2.ip_address, 5000))
-    packet1 = Packet(
-        source=SocketAddr(network.user2.ip_address, 5000),
-        dest=SocketAddr(network.home2.ip_address, 9000),
-        message=b"ICMPPing",
-        response=False,
-    )
-    network.home1.send_packet(packet1)
-
-    packet2 = Packet(
-        source=SocketAddr(network.user6.ip_address, 9000),
-        dest=SocketAddr(network.home1.ip_address, 5000),
-        message=b"ICMPPing",
-        response=False,
-    )
-    network.home2.send_packet(packet2)
-
-    assert len(network.user6.received) == 1
-    assert network.user6.received[0].message == b"ICMPPing"
-    assert len(network.user2.received) == 1
-    assert network.user2.received[0].message == b"ICMPPing"
-
-
-def test_dns(network):
-    network.home6.forward(5000, SocketAddr(network.user13.ip_address, 5000))
-    network.internet_router.map_domain("google.com", network.home6.ip_address)
-    network.internet_router.flood_dns()
-
-    
-
-    dns_packet = Packet(SocketAddr(network.user2.ip_address, 9000),
-                        SocketAddr(network.home1.ip_address, 90),
-                        b"DNSgoogle.com", False)
-
-    network.home1.send_packet(dns_packet)
-    assert len(network.user2.received) == 1
-    ip_addr = tuple(map(int, network.user2.received[0].message.decode()[3:].split('.')))
-
-    packet = Packet(SocketAddr(network.user2.ip_address, 9000), SocketAddr(ip_addr,5000), b"ICMPPing", False)
-    network.home1.send_packet(packet)
-
-    assert len(network.user13.received) == 1
-    assert network.user13.received[0].message == b"ICMPPing"
-
-
-def test_blacklist_blocks_packet(network):
-    """Blacklisted destination IP should result in a MAGICBanned response."""
-    network.home2.forward(1000, SocketAddr(network.user6.ip_address, 9000))
-    target_ip = network.home2.ip_address
-    network.isp1.add_to_blacklist(target_ip)
-
-    packet = Packet(
-        source=SocketAddr(network.user2.ip_address, 5000),
-        dest=SocketAddr(target_ip, 1000),
-        message=b"ICMPPing",
-        response=False,
-    )
-    network.home1.send_packet(packet)
-    assert len(network.user6.received) == 0
-    assert len(network.user2.received) == 1
-    assert network.user2.received[0].message == b"MAGICBanned"
-
-
-#### New tests generated by Claude
-
-
 def test_same_router_sibling_delivery(network):
     """Packet between two users on the same home router is delivered internally."""
     packet = Packet(
@@ -334,6 +139,9 @@ def test_same_router_sibling_delivery(network):
     network.home1.send_packet(packet)
     assert len(network.user3.received) == 1
     assert network.user3.received[0].message == b"ICMPPing"
+    assert network.user3.received[0].source == SocketAddr(network.user2.ip_address, 5000)
+    assert network.user3.received[0].dest == SocketAddr(network.user3.ip_address, 8080)
+    assert network.user3.received[0].response is False
 
 
 def test_cross_isp_with_port_forward(network):
@@ -348,6 +156,9 @@ def test_cross_isp_with_port_forward(network):
     network.home1.send_packet(packet)
     assert len(network.user6.received) == 1
     assert network.user6.received[0].message == b"ICMPPing"
+    assert network.user6.received[0].source.addr == network.home1.ip_address
+    assert network.user6.received[0].dest == SocketAddr(network.user6.ip_address, 9000)
+    assert network.user6.received[0].response is False
 
 
 def test_home_to_business_cross_isp(network):
@@ -362,6 +173,9 @@ def test_home_to_business_cross_isp(network):
     network.home1.send_packet(packet)
     assert len(network.user1.received) == 1
     assert network.user1.received[0].message == b"ICMPPing"
+    assert network.user1.received[0].source.addr == network.home1.ip_address
+    assert network.user1.received[0].dest == SocketAddr(network.user1.ip_address, 7000)
+    assert network.user1.received[0].response is False
 
 
 def test_business_to_home_cross_isp(network):
@@ -376,6 +190,9 @@ def test_business_to_home_cross_isp(network):
     network.business2.send_packet(packet)
     assert len(network.user2.received) == 1
     assert network.user2.received[0].message == b"ICMPPing"
+    assert network.user2.received[0].source.addr == network.business2.ip_address
+    assert network.user2.received[0].dest == SocketAddr(network.user2.ip_address, 3000)
+    assert network.user2.received[0].response is False
 
 
 def test_ping_isp_router_gets_pong(network):
@@ -389,6 +206,9 @@ def test_ping_isp_router_gets_pong(network):
     network.home1.send_packet(packet)
     assert len(network.user2.received) == 1
     assert network.user2.received[0].message == b"ICMPPong"
+    assert network.user2.received[0].source.addr == network.isp1.ip_address
+    assert network.user2.received[0].dest == SocketAddr(network.user2.ip_address, 5000)
+    assert network.user2.received[0].response is True
 
 
 def test_max_hops_isp1_to_isp4(network):
@@ -403,6 +223,9 @@ def test_max_hops_isp1_to_isp4(network):
     network.home1.send_packet(packet)
     assert len(network.user26.received) == 1
     assert network.user26.received[0].message == b"ICMPPing"
+    assert network.user26.received[0].source.addr == network.home1.ip_address
+    assert network.user26.received[0].dest == SocketAddr(network.user26.ip_address, 4000)
+    assert network.user26.received[0].response is False
 
 
 def test_multiple_packets_same_destination(network):
@@ -419,6 +242,9 @@ def test_multiple_packets_same_destination(network):
     assert len(network.user6.received) == 5
     for i in range(5):
         assert network.user6.received[i].message == f"ICMPPing{i}".encode()
+        assert network.user6.received[i].source.addr == network.home1.ip_address
+        assert network.user6.received[i].dest == SocketAddr(network.user6.ip_address, 9000)
+        assert network.user6.received[i].response is False
 
 
 def test_nonexistent_destination_returns_error(network):
@@ -433,6 +259,10 @@ def test_nonexistent_destination_returns_error(network):
     network.home1.send_packet(packet)
     assert len(network.user2.received) == 1
     assert network.user2.received[0].message == b"MAGICDestination not found"
+    assert network.user2.received[0].source.addr == network.internet_router.ip_address
+    assert network.user2.received[0].dest.addr == network.user2.ip_address
+    assert network.user2.received[0].dest.port == 5000
+    assert network.user2.received[0].response is True
 
 
 def test_business_to_business_same_isp(network):
@@ -447,6 +277,9 @@ def test_business_to_business_same_isp(network):
     network.business4.send_packet(packet)
     assert len(network.user18.received) == 1
     assert network.user18.received[0].message == b"ICMPPing"
+    assert network.user18.received[0].source.addr == network.business4.ip_address
+    assert network.user18.received[0].dest == SocketAddr(network.user18.ip_address, 9000)
+    assert network.user18.received[0].response is False
 
 
 def test_bidirectional_exchange(network):
@@ -472,8 +305,14 @@ def test_bidirectional_exchange(network):
 
     assert len(network.user6.received) == 1
     assert network.user6.received[0].message == b"ICMPPing"
+    assert network.user6.received[0].source.addr == network.home1.ip_address
+    assert network.user6.received[0].dest == SocketAddr(network.user6.ip_address, 9000)
+    assert network.user6.received[0].response is False
     assert len(network.user2.received) == 1
     assert network.user2.received[0].message == b"ICMPPing"
+    assert network.user2.received[0].source.addr == network.home2.ip_address
+    assert network.user2.received[0].dest == SocketAddr(network.user2.ip_address, 5000)
+    assert network.user2.received[0].response is False
 
 
 def test_dns_resolve_and_route(network):
@@ -490,6 +329,9 @@ def test_dns_resolve_and_route(network):
     )
     network.home1.send_packet(dns_packet)
     assert len(network.user2.received) == 1
+    assert network.user2.received[0].source.addr == network.home1.ip_address
+    assert network.user2.received[0].dest == SocketAddr(network.user2.ip_address, 9000)
+    assert network.user2.received[0].response is True
     ip_addr = tuple(map(int, network.user2.received[0].message.decode()[3:].split('.')))
 
     packet = Packet(
@@ -501,6 +343,9 @@ def test_dns_resolve_and_route(network):
     network.home1.send_packet(packet)
     assert len(network.user13.received) == 1
     assert network.user13.received[0].message == b"ICMPPing"
+    assert network.user13.received[0].source.addr == network.home1.ip_address
+    assert network.user13.received[0].dest == SocketAddr(network.user13.ip_address, 5000)
+    assert network.user13.received[0].response is False
 
 
 def test_blacklist_blocks_and_returns_banned(network):
@@ -519,6 +364,10 @@ def test_blacklist_blocks_and_returns_banned(network):
     assert len(network.user6.received) == 0
     assert len(network.user2.received) == 1
     assert network.user2.received[0].message == b"MAGICBanned"
+    assert network.user2.received[0].source.addr == network.isp1.ip_address
+    assert network.user2.received[0].dest.addr == network.user2.ip_address
+    assert network.user2.received[0].dest.port == 5000
+    assert network.user2.received[0].response is True
 
 
 def test_forbidden_range_home_to_business(network):
@@ -533,6 +382,9 @@ def test_forbidden_range_home_to_business(network):
     network.home1.send_packet(packet)
     assert len(network.user2.received) == 1
     assert b"MAGICWrong Configuration" in network.user2.received[0].message
+    assert network.user2.received[0].source.addr == network.home1.ip_address
+    assert network.user2.received[0].dest == SocketAddr(network.user2.ip_address, 5000)
+    assert network.user2.received[0].response is True
 
 
 def test_forbidden_range_business_to_home(network):
@@ -547,6 +399,9 @@ def test_forbidden_range_business_to_home(network):
     network.business1.send_packet(packet)
     assert len(network.user1.received) == 1
     assert b"MAGICWrong Configuration" in network.user1.received[0].message
+    assert network.user1.received[0].source.addr == network.business1.ip_address
+    assert network.user1.received[0].dest == SocketAddr(network.user1.ip_address, 5000)
+    assert network.user1.received[0].response is True
 
 
 def test_ping_own_router_private_ip(network):
@@ -560,6 +415,9 @@ def test_ping_own_router_private_ip(network):
     network.home1.send_packet(packet)
     assert len(network.user2.received) == 1
     assert network.user2.received[0].message == b"ICMPPong"
+    assert network.user2.received[0].source.addr == network.home1.ip_address
+    assert network.user2.received[0].dest == SocketAddr(network.user2.ip_address, 5000)
+    assert network.user2.received[0].response is True
 
 
 ### New tests for edge cases and special functionalities
@@ -579,6 +437,10 @@ def test_stop_forwarding_blocks_delivery(network):
     assert len(network.user6.received) == 0
     assert len(network.user2.received) == 1
     assert network.user2.received[0].message == b"ICMPPong"
+    assert network.user2.received[0].source.addr == network.home2.ip_address
+    assert network.user2.received[0].dest.addr == network.user2.ip_address
+    assert network.user2.received[0].dest.port == 5000
+    assert network.user2.received[0].response is True
 
 
 def test_dns_not_found(network):
@@ -592,6 +454,9 @@ def test_dns_not_found(network):
     network.home1.send_packet(dns_packet)
     assert len(network.user2.received) == 1
     assert network.user2.received[0].message == b"MAGICDNS not found"
+    assert network.user2.received[0].source.addr == network.home1.ip_address
+    assert network.user2.received[0].dest == SocketAddr(network.user2.ip_address, 9000)
+    assert network.user2.received[0].response is True
 
 
 def test_dns_with_www_prefix(network):
@@ -609,6 +474,9 @@ def test_dns_with_www_prefix(network):
     network.home1.send_packet(dns_packet)
     assert len(network.user2.received) == 1
     assert network.user2.received[0].message.startswith(b"DNS")
+    assert network.user2.received[0].source.addr == network.home1.ip_address
+    assert network.user2.received[0].dest == SocketAddr(network.user2.ip_address, 9000)
+    assert network.user2.received[0].response is True
 
 
 def test_unrecognized_protocol_returns_cannot_process(network):
@@ -622,6 +490,9 @@ def test_unrecognized_protocol_returns_cannot_process(network):
     network.home1.send_packet(packet)
     assert len(network.user2.received) == 1
     assert network.user2.received[0].message == b"MAGICCannot process"
+    assert network.user2.received[0].source.addr == network.home1.ip_address
+    assert network.user2.received[0].dest == SocketAddr(network.user2.ip_address, 5000)
+    assert network.user2.received[0].response is True
 
 
 def test_business_router_sibling_delivery(network):
@@ -635,6 +506,9 @@ def test_business_router_sibling_delivery(network):
     network.business2.send_packet(packet)
     assert len(network.user5.received) == 1
     assert network.user5.received[0].message == b"ICMPPing"
+    assert network.user5.received[0].source == SocketAddr(network.user4.ip_address, 5000)
+    assert network.user5.received[0].dest == SocketAddr(network.user5.ip_address, 8080)
+    assert network.user5.received[0].response is False
 
 
 def test_internet_router_ip_is_blacklisted_by_default(network):
@@ -648,6 +522,10 @@ def test_internet_router_ip_is_blacklisted_by_default(network):
     network.home1.send_packet(packet)
     assert len(network.user2.received) == 1
     assert network.user2.received[0].message == b"MAGICBanned"
+    assert network.user2.received[0].source.addr == network.isp1.ip_address
+    assert network.user2.received[0].dest.addr == network.user2.ip_address
+    assert network.user2.received[0].dest.port == 5000
+    assert network.user2.received[0].response is True
 
 
 def test_packet_to_public_ip_no_forward_processes_locally(network):
@@ -661,6 +539,10 @@ def test_packet_to_public_ip_no_forward_processes_locally(network):
     network.home1.send_packet(packet)
     assert len(network.user2.received) == 1
     assert network.user2.received[0].message == b"ICMPPong"
+    assert network.user2.received[0].source.addr == network.home2.ip_address
+    assert network.user2.received[0].dest.addr == network.user2.ip_address
+    assert network.user2.received[0].dest.port == 5000
+    assert network.user2.received[0].response is True
 
 
 def test_multiple_port_forwards_on_same_router(network):
@@ -684,7 +566,13 @@ def test_multiple_port_forwards_on_same_router(network):
     network.home1.send_packet(p2)
 
     assert len(network.user7.received) == 1
+    assert network.user7.received[0].source.addr == network.home1.ip_address
+    assert network.user7.received[0].dest == SocketAddr(network.user7.ip_address, 1000)
+    assert network.user7.received[0].response is False
     assert len(network.user8.received) == 1
+    assert network.user8.received[0].source.addr == network.home1.ip_address
+    assert network.user8.received[0].dest == SocketAddr(network.user8.ip_address, 2000)
+    assert network.user8.received[0].response is False
 
 
 def test_same_isp_different_routers(network):
@@ -699,6 +587,9 @@ def test_same_isp_different_routers(network):
     network.home3.send_packet(packet)
     assert len(network.user9.received) == 1
     assert network.user9.received[0].message == b"ICMPPing"
+    assert network.user9.received[0].source.addr == network.home3.ip_address
+    assert network.user9.received[0].dest == SocketAddr(network.user9.ip_address, 6000)
+    assert network.user9.received[0].response is False
 
 
 def test_del_domain_removes_dns(network):
@@ -716,6 +607,9 @@ def test_del_domain_removes_dns(network):
     network.home1.send_packet(dns_packet)
     assert len(network.user2.received) == 1
     assert network.user2.received[0].message == b"MAGICDNS not found"
+    assert network.user2.received[0].source.addr == network.home1.ip_address
+    assert network.user2.received[0].dest == SocketAddr(network.user2.ip_address, 9000)
+    assert network.user2.received[0].response is True
 
 
 def test_blacklist_multiple_ips(network):
@@ -742,8 +636,16 @@ def test_blacklist_multiple_ips(network):
 
     assert len(network.user2.received) == 1
     assert network.user2.received[0].message == b"MAGICBanned"
+    assert network.user2.received[0].source.addr == network.isp1.ip_address
+    assert network.user2.received[0].dest.addr == network.user2.ip_address
+    assert network.user2.received[0].dest.port == 5000
+    assert network.user2.received[0].response is True
     assert len(network.user3.received) == 1
     assert network.user3.received[0].message == b"MAGICBanned"
+    assert network.user3.received[0].source.addr == network.isp1.ip_address
+    assert network.user3.received[0].dest.addr == network.user3.ip_address
+    assert network.user3.received[0].dest.port == 5000
+    assert network.user3.received[0].response is True
 
 
 def test_forward_then_stop_then_forward_again(network):
@@ -761,6 +663,9 @@ def test_forward_then_stop_then_forward_again(network):
     network.home1.send_packet(packet)
     assert len(network.user6.received) == 1
     assert network.user6.received[0].message == b"ICMPPing"
+    assert network.user6.received[0].source.addr == network.home1.ip_address
+    assert network.user6.received[0].dest == SocketAddr(network.user6.ip_address, 9000)
+    assert network.user6.received[0].response is False
 
 
 def test_ping_business_router_private_ip(network):
@@ -774,6 +679,9 @@ def test_ping_business_router_private_ip(network):
     network.business1.send_packet(packet)
     assert len(network.user1.received) == 1
     assert network.user1.received[0].message == b"ICMPPong"
+    assert network.user1.received[0].source.addr == network.business1.ip_address
+    assert network.user1.received[0].dest == SocketAddr(network.user1.ip_address, 5000)
+    assert network.user1.received[0].response is True
 
 
 def test_dns_flood_propagates_to_nested_routers(network):
@@ -785,3 +693,81 @@ def test_dns_flood_propagates_to_nested_routers(network):
     assert "deep.net" in network.home1.dns_record
     assert "deep.net" in network.isp3.dns_record
     assert "deep.net" in network.business3.dns_record
+
+
+### NAT Timeout
+
+def test_nat_timeout_pass(network):
+    from game_timer import game_timer
+    
+    network.home6.forward(8900, SocketAddr(network.user13.ip_address, 8900))
+
+    packet_front = Packet(SocketAddr(network.user2.ip_address, 9000), 
+                          SocketAddr(network.home6.ip_address, 8900),
+                          b'yo',
+                          False)
+
+    network.home1.send_packet(packet_front)
+
+    assert len(network.user13.received) == 1
+    nat_sock = network.user13.received[0].source
+
+    print(nat_sock)
+
+    game_timer.delta_time(10)
+
+    packet_back = Packet(SocketAddr(network.user13.ip_address, 8900), nat_sock, b'wazzup', True)
+
+    network.home6.send_packet(packet_back)
+
+    assert len(network.user2.received) == 1
+    assert network.user2.received[0].message == b'wazzup'
+
+
+def test_nat_timeout_fail(network):
+    from game_timer import game_timer
+    
+    network.home6.forward(8900, SocketAddr(network.user13.ip_address, 8900))
+
+    packet_front = Packet(SocketAddr(network.user2.ip_address, 9000), 
+                          SocketAddr(network.home6.ip_address, 8900),
+                          b'yo',
+                          False)
+
+    network.home1.send_packet(packet_front)
+
+    assert len(network.user13.received) == 1
+    nat_sock = network.user13.received[0].source
+
+    print(nat_sock)
+
+    game_timer.delta_time(400)
+
+    packet_back = Packet(SocketAddr(network.user13.ip_address, 8900), nat_sock, b'wazzup', True)
+
+    network.home6.send_packet(packet_back)
+
+    assert len(network.user2.received) == 0
+
+
+### Disconnect and Connect to different ConsumerRouter
+
+def test_switch_routers(network):
+    first_ip = network.user2.parent.ip_address
+    assert network.user2 in network.home1.children
+    network.home1.children.remove(network.user2)
+
+    network.user2.parent = network.home3
+    network.home3.children.append(network.user2)
+    network.user2.ip_address = network.user2.parent.hand_ip()
+    
+    assert first_ip != network.user2.parent.ip_address
+
+    network.home3.forward(8900, SocketAddr(network.user2.ip_address, 8900))
+
+    packet = Packet(SocketAddr(network.user3.ip_address, 9000), SocketAddr(network.home3.ip_address, 8900), b'ICMPPing', False)
+
+    network.home1.send_packet(packet)
+
+    assert len(network.user2.received) == 1
+    assert network.user2.received[0].message == b'ICMPPing'
