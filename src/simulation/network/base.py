@@ -1,23 +1,33 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+
+from typing import TYPE_CHECKING, Any, override, Generic, TypeVar
 from enum import Enum
 from abc import ABC, abstractmethod
-from bidict import bidict
-from typing import Tuple, Optional, List
+from typing import NamedTuple
 from dataclasses import dataclass
 
 if TYPE_CHECKING:
-    from typing import TypeAlias, Tuple, Optional, List, Dict
-    from node import ComputerNetworkAdapter
+    from typing import TypeAlias
+    from simulation.node import ComputerNetworkAdapter
 
 import random
 
-Node: TypeAlias = 'Router | ComputerNetworkAdapter'
+Node: TypeAlias = "Router | ComputerNetworkAdapter"
 
-IPv4Addr: TypeAlias = Tuple[int, int, int, int]
 Port: TypeAlias = int
-Bidict: TypeAlias = bidict
 Domain: TypeAlias = str
+
+
+class IPv4Addr(NamedTuple):
+
+    first: int
+    second: int
+    third: int
+    fourth: int
+
+    @override
+    def __str__(self):
+        return ".".join(map(str, self))
 
 
 @dataclass(eq=True, frozen=True)
@@ -25,11 +35,19 @@ class CIDR(object):
     domain: IPv4Addr
     fixed: int
 
+    @override
+    def __str__(self):
+        return f'{self.domain}/{self.fixed}'
+
 
 @dataclass(eq=True, frozen=True)
 class SocketAddr(object):
     addr: IPv4Addr
     port: Port
+
+    @override
+    def __str__(self):
+        return f"{self.addr}:{self.port}"
 
 
 def is_ip_in_domain(ip: IPv4Addr, domain: CIDR):
@@ -56,6 +74,7 @@ class RouterPacketProcessor(object):
 
     @classmethod
     def process_packet(cls, router: Router, packet: Packet) -> Packet:
+        assert router.enabled and router.ip_address is not None
         Prot = RouterPacketProcessor.Protocol
         decoded_message = ""
         try:
@@ -99,24 +118,19 @@ class RouterPacketProcessor(object):
                       packet.source, 
                       return_message, 
                       True)
-        
+    
 
 class Router(ABC):
-    LOOPBACK: CIDR = CIDR((127,0,0,0), 8)
-    def __init__(self, parent: Optional[Router], children: List[Node] = None, enabled: bool = True) -> None:
-        self.dns_record: Dict[Domain, IPv4Addr] = dict()
-        self.parent: Router | None = parent
-        self.children = children or []
+    LOOPBACK: CIDR = CIDR(IPv4Addr(127,0,0,0), 8)
+    def __init__(self, parent: Router[Node] | None, enabled: bool = True) -> None:
+        self.dns_record: dict[Domain, IPv4Addr] = dict()
+        self.parent: Router[Node] | None = parent
+        self.children: list[Node] = []
         self.enabled: bool = enabled
-        self.ip_address: Optional[IPv4Addr] = self.assign_ip() if self.enabled else None
+        self.ip_address: IPv4Addr | None = self.assign_ip() if self.enabled else None
 
         if self.parent:
             self.parent.children.append(self)
-
-        for child in self.children:
-            child.parent = self
-            child.disable()
-            child.enable()
 
     def get_unassigned_port(self):
         while True:
@@ -130,7 +144,7 @@ class Router(ABC):
         pass
 
     @abstractmethod
-    def domain_range(self) -> Optional[CIDR]:
+    def domain_range(self) -> CIDR | None:
         pass
 
     def enable(self) -> None:

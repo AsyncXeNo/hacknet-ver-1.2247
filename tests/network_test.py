@@ -2,13 +2,10 @@ from __future__ import annotations
 import pytest
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
-from simulation.network import InternetRouter, ISPRouter, BusinessRouter, HomeRouter, Packet, SocketAddr
-from loguru_config import configure_master_logger, remove_default_logger
-
-from loguru import logger
+from simulation.network import InternetRouter, ISPRouter, BusinessRouter, HomeRouter, Packet, SocketAddr, IPv4Addr
 
 if TYPE_CHECKING:
-    from simulation.network import IPv4Addr, ConsumerRouter
+    from simulation.network import ConsumerRouter
 
 
 class PacketSink:

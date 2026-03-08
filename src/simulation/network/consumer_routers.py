@@ -1,29 +1,39 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, TypeAlias
+from abc import ABCMeta, abstractmethod
+from typing import TYPE_CHECKING, override
+
 from .base import Router, Packet, is_ip_in_domain
-from simulation.network.fixed_routers import ISPRouter
-from simulation.network.base import CIDR, SocketAddr
+from simulation.network.base import CIDR, SocketAddr, IPv4Addr
 from bidict import bidict
 from itertools import chain
-from loguru import logger
+from loguru_config import get_subsystem_logger
+from game_timer import game_timer, GameTimer
 
 if TYPE_CHECKING:
-    from network.fixed_routers import ISPRouter
-    from network.base import Bidict, Port
-    from typing import List, Dict, Optional
-    from node import ComputerNetworkAdapter
+    from ..network.fixed_routers import ISPRouter
+    from ..network.base import Port
+    from ..node import ComputerNetworkAdapter
 
 import random
 
+logger = get_subsystem_logger("network")
 
-class ConsumerRouter(Router):
+class ConsumerRouter(Router, metaclass=ABCMeta):
     FORBIDDEN_RANGE: CIDR
     PRIVATE_RANGE: CIDR
+    PRIVATE_IP: IPv4Addr
 
-    def assign_ip(self):
+    def __init__(self, parent: Router | None, enabled: bool = True) -> None:
+        self.nat_table: dict[Port, tuple[SocketAddr, int]] = dict()
+        self.port_forwarding: bidict[Port, SocketAddr] = bidict()
+        super().__init__(parent, enabled)
+
+    @override
+    def assign_ip(self) -> IPv4Addr:
         return self.parent.hand_ip()
 
     def wrong_range_packet(self, packet: Packet):
+        assert self.ip_address is not None
         incorrect_packet = Packet(SocketAddr(self.ip_address, self.get_unassigned_port()),
                                     packet.source,
                                     b'MAGICWrong Configuration: Business Router',
@@ -35,9 +45,7 @@ class ConsumerRouter(Router):
         socket_addr = packet.dest
         if packet.dest.addr == self.ip_address:
             socket_addr = self.remove_from_NAT(packet.dest.port)
-            logger.debug(f"Got {socket_addr} from NAT")
             if not socket_addr:
-                self.send_packet(self.process_packet(packet))
                 return
         correct_child = None
         for child in self.children:
@@ -57,7 +65,7 @@ class ConsumerRouter(Router):
             if not socket_addr:
                 self.send_packet(self.process_packet(packet))
                 return
-
+            logger.debug(f"Got {socket_addr} from Port Forwarding for port {packet.dest.port} on {self.ip_address}")
         correct_child =  None
         for child in self.children:
             if child.ip_address == socket_addr.addr:
@@ -75,11 +83,15 @@ class ConsumerRouter(Router):
             correct_child.send_packet(packet)
 
     def external_request_packet(self, packet: Packet):
+        assert self.ip_address is not None
+        assert self.parent is not None
         port = self.add_to_NAT(packet.source)
         packet.source = SocketAddr(self.ip_address, port)
         self.parent.send_packet(packet)
 
     def external_response_packet(self, packet: Packet):
+        assert self.ip_address is not None
+        assert self.parent is not None
         port = self.port_forwarding.inv.get(packet.dest)
         packet.source = SocketAddr(self.ip_address, port)
         self.parent.send_packet(packet)
@@ -113,9 +125,15 @@ class ConsumerRouter(Router):
                 self.external_response_packet(packet)
 
 
-    def domain_range(self) -> Optional[CIDR]:
+    @abstractmethod
+    def hand_ip(self) -> IPv4Addr:
+        pass
+
+    @override
+    def domain_range(self) -> CIDR | None:
         return self.PRIVATE_RANGE if self.enabled else None
 
+    @override
     def get_unassigned_port(self):
         while True:
             num = random.randint(0, 65535)
@@ -124,44 +142,49 @@ class ConsumerRouter(Router):
         return num
 
     def add_to_NAT(self, socket_addr: SocketAddr) -> Port:
+        for nat in self.nat_table.copy():
+            if game_timer.get_time() >= self.nat_table[nat][1]:
+                del self.nat_table[nat]
+
         port = self.get_unassigned_port()
-        logger.info(f"Added port {port} to NAT for address {socket_addr}")
-        self.nat_table[port] = socket_addr
+        logger.debug(f"✔ NAT {self.ip_address}:{port} -> {socket_addr}")
+        expires_at = game_timer.get_time() + GameTimer.calc_deltatime(minutes=5)
+        self.nat_table[port] = socket_addr, expires_at
         return port
 
     def forward(self, port: Port, socket_addr: SocketAddr) -> None:
         self.port_forwarding[port] = socket_addr
+        logger.debug(f"✔ Forwarding {self.ip_address}:{port} -> {socket_addr}")
 
     def stop_forwarding(self, port: Port) -> None:
+        logger.debug(f"✗ Forwarding {self.ip_address}:{port} -> {self.port_forwarding[port]}")
         del self.port_forwarding[port]
 
     def remove_from_NAT(self, port: Port) -> SocketAddr:
         if port not in self.nat_table: return
         
-        logger.info(f"Removing port {port} to NAT for address {self.nat_table[port]}")
+        logger.debug(f"✗ NAT {self.ip_address}:{port} -> {self.nat_table[port][0]}")
         
-        socket_addr = self.nat_table[port]
+        socket_addr = self.nat_table[port][0]
         del self.nat_table[port]
         return socket_addr
 
 
 class BusinessRouter(ConsumerRouter):
-    PRIVATE_IP = (10, 0, 0, 1)
-    FORBIDDEN_RANGE = CIDR((192,168,0,0), 16)
-    PRIVATE_RANGE = CIDR((10,0,0,0), 8)
+    PRIVATE_IP: IPv4Addr = IPv4Addr(10, 0, 0, 1)
+    FORBIDDEN_RANGE: CIDR = CIDR(IPv4Addr(192,168,0,0), 16)
+    PRIVATE_RANGE: CIDR = CIDR(IPv4Addr(10,0,0,0), 8)
 
-    def __init__(self, parent: ISPRouter, children : List[ComputerNetworkAdapter | HomeRouter] = None, enabled: bool = True):
+    def __init__(self, parent: ISPRouter, enabled: bool = True):
         assert parent or not enabled, "Consumers routers cannot be enabled without connection to an ISP"
-        self.nat_table: Dict[Port, SocketAddr] = dict()
-        self.port_forwarding: Bidict[Port, SocketAddr] = bidict()
-        children = children or []
-        super().__init__(parent, children, enabled)
+        super().__init__(parent, enabled)
+        logger.debug(f"Created Business Router with ip: {self.ip_address}")
 
     def hand_ip(self):
         assert self.enabled, "Inactive ISP assigning address"
         assert len(self.children) < 2**20, "Too many nodes"
         while True:
-            current_ip = (10, random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+            current_ip = IPv4Addr(10, random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
             if current_ip == (10,0,0,1): continue
             for child in self.children:
                 if child.ip_address and child.ip_address == current_ip:
@@ -169,26 +192,24 @@ class BusinessRouter(ConsumerRouter):
             else:
                 return current_ip
 
-
-
 class HomeRouter(ConsumerRouter):
-    PRIVATE_IP = (192, 168, 1, 1)
-    FORBIDDEN_RANGE = CIDR((10,0,0,0), 8)
-    PRIVATE_RANGE = CIDR((192,168,0,0), 16)
+    PRIVATE_IP: IPv4Addr = IPv4Addr(192, 168, 1, 1)
+    FORBIDDEN_RANGE: CIDR = CIDR((10,0,0,0), 8)
+    PRIVATE_RANGE: CIDR = CIDR((192,168,0,0), 16)
 
-    def __init__(self, parent: ISPRouter | BusinessRouter, children : List[ComputerNetworkAdapter] = None, enabled: bool = True):
+    def __init__(self, parent: ISPRouter | BusinessRouter, enabled: bool = True):
         assert parent or not enabled, "Consumers routers cannot be enabled without connection to an ISP"
-        self.nat_table: Dict[Port, SocketAddr] = dict()
-        self.port_forwarding: Bidict[Port, SocketAddr] = bidict()
-        children = children or []
-        super().__init__(parent, children, enabled)
+        self.nat_table: dict[Port, tuple[SocketAddr, int]] = dict()
+        self.port_forwarding: bidict[Port, SocketAddr] = bidict()
+        super().__init__(parent, enabled)
+        logger.debug(f"Created Home Router with ip: {self.ip_address}")
 
 
     def hand_ip(self):
         assert self.enabled, "Inactive ISP assigning address"
         assert len(self.children) < 2**15, "Too many nodes"
         while True:
-            current_ip = (192, 168, random.randint(0, 255), random.randint(0, 255))
+            current_ip = IPv4Addr(192, 168, random.randint(0, 255), random.randint(0, 255))
             if current_ip == (192,168,1,1): continue
             for child in self.children:
                 if child.ip_address and child.ip_address == current_ip:
