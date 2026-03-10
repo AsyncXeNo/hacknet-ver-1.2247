@@ -1,12 +1,15 @@
 from __future__ import annotations
-from fs.storage_unit import StorageUnit
+from fs.storage_unit import StorageUnit, Action, FSPermissionError
 from better_exceptions import LoggingException
 from loguru_config import get_subsystem_logger
+from permissions import PermTriplet, Permissions
+
 
 class DirectoryError(LoggingException):
     def __init__(self, message, *args):
         logger = get_subsystem_logger('fs')
         super().__init__(logger, message, *args)
+
 
 class RootDirError(LoggingException):
     def __init__(self, message, *args):
@@ -20,7 +23,7 @@ class Directory(StorageUnit):
     @property
     def path(self) -> str:
         """Returns the directory's absolute path"""
-        return f'{self.parent.path}{"/" if not isinstance(self.parent, RootDir) else ""}{self.get_name()}'
+        return f'{self.parent.path}{"/" if not isinstance(self.parent, RootDir) else ""}{self.name}'
 
     def __contains__(self, item):
         if isinstance(item, str):
@@ -43,12 +46,15 @@ class Directory(StorageUnit):
 
 
     # Operations
-    def add(self, su: StorageUnit) -> None:
+    def add(self, su: StorageUnit, user_uid: int) -> None:
         """Adds a storage unit to the contents (handles parent)"""
+        
+        if not self.has_permission(user_uid, Action.WRITE):
+            raise FSPermissionError(f"user {user_uid} doesn't have permission to add to directory")
 
         self._validate_directory_element(su)
 
-        if self.get_su_by_name(su.get_name()) is not None:
+        if self[su.name] is not None:
             raise DirectoryError('Directory cannot have more than 1 storage units with the same name')
 
         if su.parent != self:
@@ -58,8 +64,11 @@ class Directory(StorageUnit):
         self.contents.append(su)
 
 
-    def delete(self, su: StorageUnit) -> None:
+    def delete(self, su: StorageUnit, user_uid: int) -> None:
         """Deletes a storage unit from the contents"""
+
+        if not self.has_permission(user_uid, Action.WRITE):
+            raise FSPermissionError(f"user {user_uid} doesn't have permission to delete directory")
 
         try:
             self.contents.remove(su)
@@ -79,7 +88,7 @@ class Directory(StorageUnit):
             self._validate_directory_element(element)
 
         for element in contents:
-            if len(list(filter(lambda su, element = element: su.get_name() == element.get_name(), contents))) > 1:
+            if len(list(filter(lambda su, element = element: su.name == element.name, contents))) > 1:
                 raise DirectoryError('Directory cannot have more than 1 storage units with the same name')
 
     def _validate_directory_element(self, element: StorageUnit) -> None:
@@ -92,8 +101,9 @@ class Directory(StorageUnit):
 class RootDir(Directory):
     """Class representing the root directory in the virtual file system"""
 
-    def __init__(self, contents: list[StorageUnit] = []) -> None:
-        super().__init__(None, '', contents)
+    def __init__(self, contents: list[StorageUnit] | None = None, owner_uid: int=1) -> None:
+        contents: list[StorageUnit] = contents or []
+        super().__init__(None, '', contents, owner_uid)
 
     @property
     def path(self) -> str:
