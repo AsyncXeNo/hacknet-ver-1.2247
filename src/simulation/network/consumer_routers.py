@@ -12,7 +12,6 @@ from game_timer import game_timer, GameTimer
 if TYPE_CHECKING:
     from ..network.fixed_routers import ISPRouter
     from ..network.base import Port
-    from ..node import ComputerNetworkAdapter
 
 import random
 
@@ -23,9 +22,11 @@ class ConsumerRouter(Router, metaclass=ABCMeta):
     PRIVATE_RANGE: CIDR
     PRIVATE_IP: IPv4Addr
 
-    def __init__(self, parent: Router | None, enabled: bool = True) -> None:
+    def __init__(self, ssid: str, password: str | None, parent: Router | None, enabled: bool = True) -> None:
         self.nat_table: dict[Port, tuple[SocketAddr, int]] = dict()
         self.port_forwarding: bidict[Port, SocketAddr] = bidict()
+        self.ssid = ssid
+        self.password = password
         super().__init__(parent, enabled)
 
     @override
@@ -81,6 +82,11 @@ class ConsumerRouter(Router, metaclass=ABCMeta):
         if correct_child:
             packet.dest = socket_addr
             correct_child.send_packet(packet)
+
+    @override
+    def disable(self):
+        super().disable()
+        self.children = []
 
     def external_request_packet(self, packet: Packet):
         assert self.ip_address is not None
@@ -175,9 +181,9 @@ class BusinessRouter(ConsumerRouter):
     FORBIDDEN_RANGE: CIDR = CIDR(IPv4Addr(192,168,0,0), 16)
     PRIVATE_RANGE: CIDR = CIDR(IPv4Addr(10,0,0,0), 8)
 
-    def __init__(self, parent: ISPRouter, enabled: bool = True):
+    def __init__(self, ssid: str, password: str | None, parent: ISPRouter, enabled: bool = True):
         assert parent or not enabled, "Consumers routers cannot be enabled without connection to an ISP"
-        super().__init__(parent, enabled)
+        super().__init__(ssid, password, parent, enabled)
         logger.debug(f"Created Business Router with ip: {self.ip_address}")
 
     def hand_ip(self):
@@ -197,11 +203,11 @@ class HomeRouter(ConsumerRouter):
     FORBIDDEN_RANGE: CIDR = CIDR((10,0,0,0), 8)
     PRIVATE_RANGE: CIDR = CIDR((192,168,0,0), 16)
 
-    def __init__(self, parent: ISPRouter | BusinessRouter, enabled: bool = True):
+    def __init__(self, ssid: str, password: str | None, parent: ISPRouter | BusinessRouter, enabled: bool = True):
         assert parent or not enabled, "Consumers routers cannot be enabled without connection to an ISP"
         self.nat_table: dict[Port, tuple[SocketAddr, int]] = dict()
         self.port_forwarding: bidict[Port, SocketAddr] = bidict()
-        super().__init__(parent, enabled)
+        super().__init__(ssid, password, parent, enabled)
         logger.debug(f"Created Home Router with ip: {self.ip_address}")
 
 

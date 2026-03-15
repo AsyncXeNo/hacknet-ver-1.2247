@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, override, Generic, TypeVar
+from typing import TYPE_CHECKING, override
 from enum import Enum
 from abc import ABC, abstractmethod
 from typing import NamedTuple
@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from typing import TypeAlias
-    from simulation.node import ComputerNetworkAdapter
+    from simulation.network.adapter import ComputerNetworkAdapter
 
 import random
 
@@ -122,9 +122,9 @@ class RouterPacketProcessor(object):
 
 class Router(ABC):
     LOOPBACK: CIDR = CIDR(IPv4Addr(127,0,0,0), 8)
-    def __init__(self, parent: Router[Node] | None, enabled: bool = True) -> None:
+    def __init__(self, parent: Router | None, enabled: bool = True) -> None:
         self.dns_record: dict[Domain, IPv4Addr] = dict()
-        self.parent: Router[Node] | None = parent
+        self.parent: Router | None = parent
         self.children: list[Node] = []
         self.enabled: bool = enabled
         self.ip_address: IPv4Addr | None = self.assign_ip() if self.enabled else None

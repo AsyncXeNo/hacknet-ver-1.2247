@@ -1,8 +1,10 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from simulation.network.base import IPv4Addr, Packet
+from simulation.network.adapter import ComputerNetworkAdapter
+from simulation.network.base import IPv4Addr, Packet, Port
 from application import Application
+from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from simulation.network.consumer_routers import ConsumerRouter
@@ -12,29 +14,16 @@ class OperatingSystem(object):
     def __init__(self) -> None:
         pass
 
+    def install(self, app: Application):
+        pass
+
 
 class Computer(object): 
-    def __init__(self, os: OperatingSystem, network_adapter: ComputerNetworkAdapter, apps: list[Application] = None) -> None:
+    def __init__(self, os: OperatingSystem, network_adapter: ComputerNetworkAdapter, apps: list[Application] | None = None, peripherals: list[Peripheral] | None = None) -> None:
         self.os: OperatingSystem = os
         apps = apps or []
         for app in apps:
             self.os.install(app)
+        self.peripherals = peripherals or []
         self.network_adapter = network_adapter
         pass
-
-
-class ComputerNetworkAdapter(object):
-
-    def __init__(self, parent: ConsumerRouter, enabled: bool = True) -> None:
-        self.enabled: bool = enabled
-        self.parent: ConsumerRouter = parent
-        self.ip_address: IPv4Addr | None = self.parent.hand_ip() if self.enabled else None
-
-    def enable(self) -> None:
-        pass
-
-    def disable(self) -> None:
-        pass
-
-    def send_packet(self, packet: Packet) -> None:
-        raise NotImplemented("Not implemented")
