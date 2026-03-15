@@ -104,7 +104,7 @@ class StorageUnit(object):
     def _validate_parent(self, parent: Directory) -> None:
         """Checks if the parent is valid"""
 
-        from fs.directory import Directory
+        from simulation.fs.directory import Directory
 
         if not isinstance(parent, Directory):
             raise StorageUnitError('Storage unit\'s parent needs to be of type Directory.')

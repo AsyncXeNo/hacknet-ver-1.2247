@@ -2,30 +2,66 @@ from dataclasses import dataclass
 import random
 import hashlib
 import base64
+import secrets
 
-
-@dataclass(eq=True, frozen=True, init=False)
-class User(object):
+@dataclass(eq=True, frozen=True)
+class User:
     uid: int
     username: str
     display_name: str | None
-    hashed_password: str | None
-
-    def __init__(self, uid: int, username: str, display_name: str | None=None, *, password: str| None = None, hashed_password: str | None = None):
-        assert not (password and hashed_password)
-        self.uid = uid
-        self.username = username
-        self.display_name = display_name
-        self.hashed_password = self.hash_passwd(password) if password else hashed_password
+    hashed_password: str
 
     @classmethod
-    def hash_passwd(cls, password: str) -> str:
-        salt = base64.b64encode(random.randint(1, 64**3), altchars='./').decode('utf-8')
-        hashed = base64.b64encode(hashlib.sha512(( password + salt ).encode("utf-8")).digest(), altchars='./').decode('utf-8')
+    def with_password(
+        cls,
+        uid: int,
+        username: str,
+        password: str,
+        display_name: str | None = None,
+    ):
+        return cls(
+            uid,
+            username,
+            display_name,
+            cls.hash_passwd(password),
+        )
+
+    @classmethod
+    def with_hashed_password(
+        cls,
+        uid: int,
+        username: str,
+        hashed_password: str,
+        display_name: str | None = None,
+    ):
+        return cls(
+            uid,
+            username,
+            display_name,
+            hashed_password,
+        )
+
+    @staticmethod
+    def hash_passwd(password: str) -> str:
+        salt = base64.b64encode(
+            secrets.token_bytes(16),
+            altchars=b'./'
+        ).decode()
+
+        hashed = base64.b64encode(
+            hashlib.sha512((password + salt).encode()).digest(),
+            altchars=b'./'
+        ).decode()
+
         return f"$6${salt}${hashed}"
 
-    @classmethod
-    def verify_passwd(cls, password: str, hashed: str) -> bool:
-        salt = hashed.split('$')[2]
-        new_hashed = base64.b64encode(hashlib.sha512((password + salt).encode("utf-8")).digest(), altchars='./').decode('utf-8')
-        return hashed.split('$')[3] == new_hashed
+    @staticmethod
+    def verify_passwd(password: str, hashed: str) -> bool:
+        _, _, salt, stored = hashed.split("$")
+
+        new = base64.b64encode(
+            hashlib.sha512((password + salt).encode()).digest(),
+            altchars=b'./'
+        ).decode()
+
+        return secrets.compare_digest(stored, new)

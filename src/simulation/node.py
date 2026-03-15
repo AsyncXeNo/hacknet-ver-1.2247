@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from simulation.network.base import IPv4Addr, Packet
+from application import Application
 
 if TYPE_CHECKING:
     from simulation.network.consumer_routers import ConsumerRouter
@@ -13,12 +14,14 @@ class OperatingSystem(object):
 
 
 class Computer(object): 
-    def __init__(self, os: OperatingSystem, network_id, mac_id, apps) -> None:
+    def __init__(self, os: OperatingSystem, network_adapter: ComputerNetworkAdapter, apps: list[Application] = None) -> None:
         self.os: OperatingSystem = os
-        self.network_id = network_id
-        self.apps = apps
-        self.mac_id = mac_id
+        apps = apps or []
+        for app in apps:
+            self.os.install(app)
+        self.network_adapter = network_adapter
         pass
+
 
 class ComputerNetworkAdapter(object):
 

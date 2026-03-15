@@ -1,9 +1,10 @@
 from __future__ import annotations
-from fs.storage_unit import StorageUnit, Action, FSPermissionError
+from simulation.fs.storage_unit import StorageUnit, Action, FSPermissionError
 from better_exceptions import LoggingException
 from loguru_config import get_subsystem_logger
-from permissions import PermTriplet, Permissions
+from simulation.fs.permissions import PermTriplet, Permissions
 
+logger = get_subsystem_logger('fs')
 
 class DirectoryError(LoggingException):
     def __init__(self, message, *args):
@@ -23,7 +24,7 @@ class Directory(StorageUnit):
     @property
     def path(self) -> str:
         """Returns the directory's absolute path"""
-        return f'{self.parent.path}{"/" if not isinstance(self.parent, RootDir) else ""}{self.name}'
+        return f'{self.parent.path}{self.name}/'
 
     def __contains__(self, item):
         if isinstance(item, str):
@@ -34,6 +35,7 @@ class Directory(StorageUnit):
     def __getitem__(self, key) -> StorageUnit:
         try:
             pred = lambda su: su.name == key
+            logger.debug(self.contents)
             element = next(filter(pred, self.contents))
             return element
         except StopIteration:
@@ -54,7 +56,7 @@ class Directory(StorageUnit):
 
         self._validate_directory_element(su)
 
-        if self[su.name] is not None:
+        if su.name in self:
             raise DirectoryError('Directory cannot have more than 1 storage units with the same name')
 
         if su.parent != self:
@@ -101,9 +103,9 @@ class Directory(StorageUnit):
 class RootDir(Directory):
     """Class representing the root directory in the virtual file system"""
 
-    def __init__(self, contents: list[StorageUnit] | None = None, owner_uid: int=1) -> None:
+    def __init__(self, contents: list[StorageUnit] | None = None) -> None:
         contents: list[StorageUnit] = contents or []
-        super().__init__(None, '', contents, owner_uid)
+        super().__init__(None, '', contents, 1)
 
     @property
     def path(self) -> str:

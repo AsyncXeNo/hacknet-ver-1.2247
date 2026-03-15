@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from fs.storage_unit import StorageUnit
+from simulation.fs.storage_unit import StorageUnit
 from better_exceptions import LoggingException
 from loguru_config import get_subsystem_logger
 import inspect
