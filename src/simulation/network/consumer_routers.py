@@ -99,8 +99,8 @@ class ConsumerRouter(Router, metaclass=ABCMeta):
         assert self.ip_address is not None
         assert self.parent is not None
         port = self.port_forwarding.inv.get(packet.source)
-        if not port: return
-        packet.source = SocketAddr(self.ip_address, port)
+        if port:
+            packet.source = SocketAddr(self.ip_address, port)
         self.parent.send_packet(packet)
 
     def send_packet(self, packet):

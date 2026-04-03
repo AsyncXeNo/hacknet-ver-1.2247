@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from simulation.network.base import IPv4Addr, Packet, Port

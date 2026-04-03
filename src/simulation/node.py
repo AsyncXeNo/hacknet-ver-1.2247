@@ -2,7 +2,7 @@ from __future__ import annotations
 import time
 from itertools import chain
 from simulation.network.adapter import ComputerNetworkAdapter
-from application import Application
+from simulation.application import Application
 import random
 from enum import Enum
 from copy import deepcopy
@@ -150,15 +150,19 @@ class HardwareResource(Enum):
 HardwareAccess: TypeAlias = 'RamAccess | Peripheral | ComputerNetworkAdapter'
 
 class Computer(object): 
-    def __init__(self, os: OperatingSystem, total_ram: int, network_adapter: ComputerNetworkAdapter, peripherals: list[Peripheral] | None = None,) -> None:
+    def __init__(self, os: OperatingSystem, total_ram: int, peripherals: list[Peripheral] | None = None,) -> None:
         self.os: OperatingSystem = os
         self.ram: RamAccess = RamAccess(self, total_ram, 0)
         self.peripherals: list[Peripheral] = peripherals or []
-        self.network_adapter = network_adapter
+        self.network_adapter_access: NetworkAdapterAccess = NetworkAdapterAccess(ComputerNetworkAdapter())
 
         self.on: bool = False
 
         self.os.own(self)
+
+    @property
+    def network_adaptor_base(self):
+        return self.network_adapter_access.net_adap
 
     def switch_on(self) -> None:
         self.on = True
@@ -170,7 +174,7 @@ class Computer(object):
         if not self.on: raise ComputerSwitchedOff('Cannot get resource when computer is switched off.')
         match(res):
             case HardwareResource.NETWORK_ADAPTER:
-                return self.network_adapter
+                return self.network_adapter_access
             case HardwareResource.RAM:
                 return self.ram
 
@@ -212,6 +216,7 @@ class NetworkAdapterAccess(object):
     def unbind(self, port: Port):
         if self.bindings.get(port) is not None:
             del self.bindings[port]
+            del self.net_adap.listeners[port]
         else:
             raise UnboundException(f'Port {port} is not bound but attempted to unbind')
 
