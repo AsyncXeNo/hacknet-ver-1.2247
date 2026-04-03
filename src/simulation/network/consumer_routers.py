@@ -99,9 +99,9 @@ class ConsumerRouter(Router, metaclass=ABCMeta):
         assert self.ip_address is not None
         assert self.parent is not None
         port = self.port_forwarding.inv.get(packet.source)
+        if not port: return
         packet.source = SocketAddr(self.ip_address, port)
         self.parent.send_packet(packet)
-
 
     def send_packet(self, packet):
         is_loopback = is_ip_in_domain(packet.dest.addr, self.LOOPBACK)
@@ -131,7 +131,7 @@ class ConsumerRouter(Router, metaclass=ABCMeta):
         else:
             if not packet.response:
                 self.external_request_packet(packet)
-            if packet.response:
+            else:
                 self.external_response_packet(packet)
 
 
@@ -200,13 +200,11 @@ class BusinessRouter(ConsumerRouter):
 
 class HomeRouter(ConsumerRouter):
     PRIVATE_IP: IPv4Addr = IPv4Addr(192, 168, 1, 1)
-    FORBIDDEN_RANGE: CIDR = CIDR((10,0,0,0), 8)
-    PRIVATE_RANGE: CIDR = CIDR((192,168,0,0), 16)
+    FORBIDDEN_RANGE: CIDR = CIDR(IPv4Addr(10,0,0,0), 8)
+    PRIVATE_RANGE: CIDR = CIDR(IPv4Addr(192,168,0,0), 16)
 
     def __init__(self, ssid: str, password: str | None, parent: ISPRouter | BusinessRouter, enabled: bool = True):
         assert parent or not enabled, "Consumers routers cannot be enabled without connection to an ISP"
-        self.nat_table: dict[Port, tuple[SocketAddr, int]] = dict()
-        self.port_forwarding: bidict[Port, SocketAddr] = bidict()
         super().__init__(ssid, password, parent, enabled)
         logger.debug(f"Created Home Router with ip: {self.ip_address}")
 

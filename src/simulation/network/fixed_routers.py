@@ -13,7 +13,6 @@ import random
 logger = get_subsystem_logger("network")
 
 class ISPRouter(Router):
-
     def __init__(self, parent: InternetRouter, enabled: bool = True):
         assert parent or not enabled, "ISP routers cannot be turned on without a connection to the internet"
         self.blacklist: list[IPv4Addr] = [IPv4Addr(0,1,1,0)]
@@ -105,13 +104,13 @@ class InternetRouter(Router):
                 if child.subrange and child.subrange.domain[0] == current_subrange:
                     break
             else:
-                return CIDR((current_subrange, 0, 0, 0), 8)
+                return CIDR(IPv4Addr(current_subrange, 0, 0, 0), 8)
     
     def assign_ip(self) -> IPv4Addr:
         return IPv4Addr(0,1,1,0)
 
     def domain_range(self) -> CIDR | None:
-        return (self.ip_address,0) if self.enabled else None
+        return CIDR(self.ip_address, 0) if self.enabled else None
     
     def enable(self) -> None:
         assert False, 'Internet Router cannot be enabled.'

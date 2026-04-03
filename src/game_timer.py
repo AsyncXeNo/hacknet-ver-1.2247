@@ -1,10 +1,11 @@
 
 class GameTimer(object):
     def __init__(self):
+        # In seconds
         self.time: float = 0
 
-    def delta_time(self, dt: float):
-        self.time += dt
+    def delta_time(self, dt_ms: float):
+        self.time += dt_ms / 1000
 
     def update_time(self, time: float):
         self.time = time

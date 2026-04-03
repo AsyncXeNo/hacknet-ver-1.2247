@@ -12,10 +12,10 @@ class Binding:
 
 class ComputerNetworkAdapter(object):
 
-    def __init__(self, parent: ConsumerRouter, listeners: list[Binding]) -> None:
-        self.parent: ConsumerRouter = parent
-        self.ip_address: IPv4Addr | None = self.parent.hand_ip() if self.enabled else None
-        self.listeners: list[Binding] = listeners or []
+    def __init__(self) -> None:
+        self.parent: ConsumerRouter | None = None
+        self.ip_address: IPv4Addr | None = None
+        self.listeners: dict[Port, callable[[Packet], bytes | None]] = dict()
         self.buffer: list[Packet] = []
 
     def disconnect(self) -> None:
@@ -31,19 +31,15 @@ class ComputerNetworkAdapter(object):
             self.parent.children.append(self)
             self.ip_address = self.parent.hand_ip()
 
-    def enable(self) -> None:
-        pass
-
-    def disable(self) -> None:
-        self.disconnect()
-    
     def handle_request(self, packet: Packet) -> None:
+        assert self.parent, 'Not connected to WiFi'
+        
         if self.ip_address != packet.dest.addr:
             self.parent.send_packet(packet)
-        for listener in self.listeners:
-            if self.ip_address == packet.dest.addr and listener.port == packet.dest.port:
-                msg = listener.service_fn(packet)
-                if msg: self.parent.send_packet(Packet(packet.dest, packet.source, msg, response=True))
+        
+        elif packet.dest.port in self.listeners:
+            msg = self.listeners[packet.dest.port](packet)
+            if msg: self.parent.send_packet(Packet(packet.dest, packet.source, msg, response=True))
 
     def handle_response(self, packet: Packet) -> None:
         if self.ip_address == packet.dest.addr:

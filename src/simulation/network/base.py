@@ -105,7 +105,7 @@ class RouterPacketProcessor(object):
             raw_message = decoded_message.removeprefix(Prot.DNS.value)
             raw_message = raw_message.strip().strip(' ').strip('/')
             if raw_message.count('.') > 1 and raw_message.startswith('www.'):
-                raw_message = raw_message.strip('www.')
+                raw_message = raw_message.removeprefix('www.')
             if raw_message in router.dns_record:
                 address = '.'.join(map(str, router.dns_record[raw_message]))
                 return_message = str.encode(f"{Prot.DNS.value}{address}")
