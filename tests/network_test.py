@@ -7,7 +7,7 @@ from threading import Thread
 from simulation.network import InternetRouter, ISPRouter, BusinessRouter, HomeRouter, Packet, SocketAddr, IPv4Addr
 from simulation.network.adapter import ComputerNetworkAdapter
 from simulation.node import OperatingSystem, Computer, NetworkAdapterAccess, HardwareResource, ComputerSwitchedOff, PortInUseException
-from simulation.application import Application
+from simulation.node.application import Application
 from game_timer import game_timer
 
 if TYPE_CHECKING:
