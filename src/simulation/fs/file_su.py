@@ -18,12 +18,12 @@ class FileError(LoggingException):
 class File(StorageUnit):
     """Class representing a file in the virtual file system"""
 
-    def __init__(self, parent: Directory, name: str, contents: str | bytes, owner_uid: int) -> None:
+    def __init__(self, name: str, contents: str | bytes, owner_uid: int, parent: Directory | None=None) -> None:
 
         self.filename: str
         self.extension: str | None
 
-        super().__init__(parent, name, contents, owner_uid)
+        super().__init__(name, contents, owner_uid, parent)
 
     @property
     def name(self) -> str:

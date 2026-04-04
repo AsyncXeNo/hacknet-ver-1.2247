@@ -31,12 +31,12 @@ class FSPermissionError(StorageUnitError):
 class StorageUnit(object):
     """Class representing a storage unit in the virtual file system"""
 
-    def __init__(self, parent: Directory, name: str, contents: str | bytes | list[StorageUnit], owner_uid: int) -> None:
+    def __init__(self, name: str, contents: str | bytes | list[StorageUnit], owner_uid: int, parent: Directory | None = None) -> None:
 
         self.owner_uid: int = owner_uid
         self.permissions: Permissions = Permissions(PermTriplet(True, True, True),
                                                     PermTriplet(False, True, False))
-        self.parent: Directory = parent
+        self.parent: Directory | None = parent
         self.name: str = name
         self.contents: str | bytes | list[StorageUnit] = contents
 
@@ -90,12 +90,12 @@ class StorageUnit(object):
         self.contents = contents
 
     def set_owner(self, new_owner_uid: int, user_uid: int) -> None:
-        if user_uid != 1:
+        if user_uid != 0:
             raise FSPermissionError(f"user {user_uid} doesn't have permission to set owner")
         self.owner_uid = new_owner_uid
 
     def set_permissions(self, new_permissions: Permissions, user_uid: int) -> None:
-        if user_uid not in [1, self.owner_uid]:
+        if user_uid not in [0, self.owner_uid]:
             raise FSPermissionError(f"user {user_uid} doesn't have permissions to change permissions")
         self.permissions = new_permissions
 
@@ -106,8 +106,8 @@ class StorageUnit(object):
 
         from simulation.fs.directory import Directory
 
-        if not isinstance(parent, Directory):
-            raise StorageUnitError('Storage unit\'s parent needs to be of type Directory.')
+        if not isinstance(parent, Directory) and parent is not None:
+            raise StorageUnitError('Storage unit\'s parent needs to be of type Directory or None.')
     
     def _validate_name(self, name: str) -> None:
         """Checks if the name is valid"""
@@ -134,7 +134,7 @@ class StorageUnit(object):
     # Helper functions
 
     def has_permission(self, user_id: int, action: Action) -> bool:
-        if user_id == 1: return True
+        if user_id == 0: return True
         perms = self.permissions[self.owner_uid != user_id]
         return perms[action.value]
 

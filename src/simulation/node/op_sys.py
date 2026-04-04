@@ -2,9 +2,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from simulation.node.hardware import Computer, NetworkAdapterAccess
+from simulation.fs.user import User
 from simulation.node.hardware import HardwareResource
 from simulation.node.application import Application
+from simulation.node.constants import BASE_FS
+from simulation.fs import RootDir, File, Directory
 import random
+import secrets
+from copy import deepcopy
 from better_exceptions import LoggingException
 from loguru_config import get_subsystem_logger
 from simulation.network.base import Port, Packet, SocketAddr
@@ -23,9 +28,17 @@ class PortInUseException(OSException):
         super().__init__(message=message, *args)
 
 
-class OperatingSystem(ABC):
-    def __init__(self, apps: list[Application] | None = None) -> None:
+class OperatingSystem(object):
+    def __init__(self, root_password: str, apps: list[Application] | None = None) -> None:
+        root = User.with_password(0, 'root', root_password, "System Administrator")
         self.owner: Computer | None = None
+            
+        self.fs: RootDir = deepcopy(BASE_FS)
+        self.fs['etc']['passwd'].set_contents(root.passwd_line + '\n')
+        self.fs['etc']['shadow'].set_contents(root.shadow_line + '\n')
+        self.fs['boot']['vmlinuz'].set_contents(secrets.token_bytes(1024))
+        self.fs['boot']['initrd.img'].set_contents(secrets.token_bytes(1024))
+
         apps = apps or []
         for app in apps:
             self.install(app)

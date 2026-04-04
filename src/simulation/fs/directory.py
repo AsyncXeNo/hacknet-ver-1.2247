@@ -105,7 +105,7 @@ class RootDir(Directory):
 
     def __init__(self, contents: list[StorageUnit] | None = None) -> None:
         contents: list[StorageUnit] = contents or []
-        super().__init__(None, '', contents, 1)
+        super().__init__('', contents, 0,None)
 
     @property
     def path(self) -> str:

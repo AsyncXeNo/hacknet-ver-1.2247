@@ -55,6 +55,14 @@ class User:
 
         return f"$6${salt}${hashed}"
 
+    @property
+    def passwd_line(self):
+        return ':'.join(self.username, 'x', self.uid, self.uid, self.display_name, '/root' if self.uid == 0 else '/home/' + self.username, '/bin/bash')
+    
+    @property
+    def shadow_line(self):
+        return f"{self.username}:{self.hashed_password}:::::::"
+
     @staticmethod
     def verify_passwd(password: str, hashed: str) -> bool:
         _, _, salt, stored = hashed.split("$")
