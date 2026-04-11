@@ -57,7 +57,7 @@ class User:
 
     @property
     def passwd_line(self):
-        return ':'.join(self.username, 'x', self.uid, self.uid, self.display_name, '/root' if self.uid == 0 else '/home/' + self.username, '/bin/bash')
+        return ':'.join([self.username, 'x', str(self.uid), str(self.uid), self.display_name, '/root' if self.uid == 0 else '/home/' + self.username, '/bin/bash'])
     
     @property
     def shadow_line(self):

@@ -34,10 +34,10 @@ class OperatingSystem(object):
         self.owner: Computer | None = None
             
         self.fs: RootDir = deepcopy(BASE_FS)
-        self.fs['etc']['passwd'].set_contents(root.passwd_line + '\n')
-        self.fs['etc']['shadow'].set_contents(root.shadow_line + '\n')
-        self.fs['boot']['vmlinuz'].set_contents(secrets.token_bytes(1024))
-        self.fs['boot']['initrd.img'].set_contents(secrets.token_bytes(1024))
+        self.fs['etc']['passwd'].set_contents(root.passwd_line + '\n', 0)
+        self.fs['etc']['shadow'].set_contents(root.shadow_line + '\n', 0)
+        self.fs['boot']['vmlinuz'].set_contents(secrets.token_bytes(1024), 0)
+        self.fs['boot']['initrd.img'].set_contents(secrets.token_bytes(1024), 0)
 
         apps = apps or []
         for app in apps:

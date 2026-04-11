@@ -785,7 +785,8 @@ if TYPE_CHECKING:
 
 
 class StubOS(OperatingSystem):
-    pass
+    def __init__(self):
+        super().__init__(root_password='test')
 
 
 class StubApp(Application):

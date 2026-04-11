@@ -6,7 +6,7 @@ from simulation.fs.storage_unit import StorageUnit, StorageUnitError, FSPermissi
 from simulation.fs.permissions import Permissions, PermTriplet
 from simulation.fs.user import User
 
-ROOT_UID = 1
+ROOT_UID = 0
 USER_UID = 100
 OTHER_UID = 999
 
@@ -19,13 +19,13 @@ def fs():
     """Basic filesystem: / -> home/ -> alice/ -> readme.txt"""
     root = RootDir()
 
-    home = Directory(root, 'home', [], ROOT_UID)
+    home = Directory('home', [], ROOT_UID, root)
     root.add(home, ROOT_UID)
 
-    user_dir = Directory(home, 'alice', [], USER_UID)
+    user_dir = Directory('alice', [], USER_UID, home)
     home.add(user_dir, ROOT_UID)
 
-    readme = File(user_dir, 'readme.txt', 'hello world', USER_UID)
+    readme = File('readme.txt', 'hello world', USER_UID, user_dir)
     user_dir.add(readme, USER_UID)
 
     return root
@@ -42,47 +42,47 @@ def root():
 class TestStorageUnitValidation:
     def test_name_empty_string_rejected(self, root):
         with pytest.raises(StorageUnitError):
-            Directory(root, '', [], ROOT_UID)
+            Directory('', [], ROOT_UID, root)
 
     def test_name_too_long_rejected(self, root):
         with pytest.raises(StorageUnitError):
-            Directory(root, 'a' * 51, [], ROOT_UID)
+            Directory('a' * 51, [], ROOT_UID, root)
 
     def test_name_boundary_values(self, root):
         """Exactly 1 and 50 chars should pass; 0 and 51 should fail."""
-        assert Directory(root, 'x', [], ROOT_UID).name == 'x'
-        assert Directory(root, 'a' * 50, [], ROOT_UID).name == 'a' * 50
+        assert Directory('x', [], ROOT_UID, root).name == 'x'
+        assert Directory('a' * 50, [], ROOT_UID, root).name == 'a' * 50
 
     def test_name_with_slash_rejected(self, root):
         with pytest.raises(StorageUnitError):
-            Directory(root, 'foo/bar', [], ROOT_UID)
+            Directory('foo/bar', [], ROOT_UID, root)
 
     def test_name_with_null_rejected(self, root):
         with pytest.raises(StorageUnitError):
-            Directory(root, 'foo\0bar', [], ROOT_UID)
+            Directory('foo\0bar', [], ROOT_UID, root)
 
     def test_name_not_string_rejected(self, root):
         with pytest.raises(StorageUnitError):
-            Directory(root, 123, [], ROOT_UID)
+            Directory(123, [], ROOT_UID, root)
 
     def test_parent_not_directory_rejected(self, root):
-        f = File(root, 'dummy.txt', 'x', ROOT_UID)
+        f = File('dummy.txt', 'x', ROOT_UID, root)
         with pytest.raises(StorageUnitError):
-            Directory(f, 'child', [], ROOT_UID)
+            Directory('child', [], ROOT_UID, f)
 
     def test_contents_invalid_type_rejected(self, root):
         with pytest.raises(StorageUnitError):
-            StorageUnit(root, 'bad', 12345, ROOT_UID)
+            StorageUnit('bad', 12345, ROOT_UID, root)
 
     def test_external_attr_set_blocked(self, root):
         """__setattr__ guard: setting attrs from outside the object should assert."""
-        f = File(root, 'test.txt', 'data', ROOT_UID)
+        f = File('test.txt', 'data', ROOT_UID, root)
         with pytest.raises(AssertionError):
             f.contents = 'hacked'
 
     def test_external_contents_read_blocked(self, root):
         """__getattribute__ guard: reading .contents from outside should assert."""
-        f = File(root, 'test.txt', 'data', ROOT_UID)
+        f = File('test.txt', 'data', ROOT_UID, root)
         with pytest.raises(AssertionError):
             _ = f.contents
 
@@ -93,7 +93,7 @@ class TestStorageUnitValidation:
 class TestStorageUnitPermissions:
     def test_default_perms_owner_rwx_others_write_only(self, root):
         """Default: owner=rwx, others=-w-. Verify the actual dispatch logic."""
-        f = File(root, 'test.txt', 'data', USER_UID)
+        f = File('test.txt', 'data', USER_UID, root)
         assert f.has_permission(USER_UID, Action.READ) is True
         assert f.has_permission(USER_UID, Action.EXECUTE) is True
         assert f.has_permission(OTHER_UID, Action.READ) is False
@@ -102,7 +102,7 @@ class TestStorageUnitPermissions:
 
     def test_root_bypasses_all_zero_permissions(self, root):
         """Root (uid=1) should bypass even fully zeroed-out permissions."""
-        f = File(root, 'test.txt', 'data', USER_UID)
+        f = File('test.txt', 'data', USER_UID, root)
         f.set_permissions(
             Permissions(PermTriplet(False, False, False), PermTriplet(False, False, False)),
             USER_UID,
@@ -113,7 +113,7 @@ class TestStorageUnitPermissions:
 
     def test_every_setter_enforces_write_permission(self, root):
         """set_contents and set_name both require WRITE; lock owner out and verify."""
-        f = File(root, 'test.txt', 'data', USER_UID)
+        f = File('test.txt', 'data', USER_UID, root)
         f.set_permissions(
             Permissions(PermTriplet(True, False, True), PermTriplet(False, False, False)),
             USER_UID,
@@ -124,19 +124,19 @@ class TestStorageUnitPermissions:
             f.set_name('new.txt', USER_UID)
 
     def test_get_contents_enforces_read_permission(self, root):
-        f = File(root, 'test.txt', 'data', USER_UID)
+        f = File('test.txt', 'data', USER_UID, root)
         with pytest.raises(FSPermissionError):
             f.get_contents(OTHER_UID)  # others lack read by default
 
     def test_set_owner_only_root_can_do_it(self, root):
-        f = File(root, 'test.txt', 'data', USER_UID)
+        f = File('test.txt', 'data', USER_UID, root)
         with pytest.raises(FSPermissionError):
             f.set_owner(OTHER_UID, USER_UID)
         f.set_owner(OTHER_UID, ROOT_UID)
         assert f.owner_uid == OTHER_UID
 
     def test_set_permissions_owner_or_root_only(self, root):
-        f = File(root, 'test.txt', 'data', USER_UID)
+        f = File('test.txt', 'data', USER_UID, root)
         # Non-owner, non-root -> fail
         with pytest.raises(FSPermissionError):
             f.set_permissions(
@@ -156,7 +156,7 @@ class TestStorageUnitPermissions:
 
     def test_owner_change_flips_permission_lookup(self, root):
         """After chown, old owner should be treated as 'others'."""
-        f = File(root, 'test.txt', 'data', USER_UID)
+        f = File('test.txt', 'data', USER_UID, root)
         f.set_permissions(
             Permissions(PermTriplet(True, True, True), PermTriplet(False, False, False)),
             USER_UID,
@@ -168,7 +168,7 @@ class TestStorageUnitPermissions:
     def test_owner_can_lock_themselves_out_of_chmod(self, root):
         """If owner removes their own write, they can still chmod (set_permissions
         only checks uid match, not write perm). Verify this behavior."""
-        f = File(root, 'test.txt', 'data', USER_UID)
+        f = File('test.txt', 'data', USER_UID, root)
         f.set_permissions(
             Permissions(PermTriplet(True, False, False), PermTriplet(False, False, False)),
             USER_UID,
@@ -186,25 +186,25 @@ class TestStorageUnitPermissions:
 
 class TestFile:
     def test_name_with_extension(self, root):
-        f = File(root, 'readme.txt', '', ROOT_UID)
+        f = File('readme.txt', '', ROOT_UID, root)
         assert f.name == 'readme.txt'
         assert f.filename == 'readme'
         assert f.extension == 'txt'
 
     def test_name_without_extension(self, root):
-        f = File(root, 'Makefile', '', ROOT_UID)
+        f = File('Makefile', '', ROOT_UID, root)
         assert f.name == 'Makefile'
         assert f.filename == 'Makefile'
         assert f.extension is None
 
     def test_name_with_multiple_dots(self, root):
-        f = File(root, 'archive.tar.gz', '', ROOT_UID)
+        f = File('archive.tar.gz', '', ROOT_UID, root)
         assert f.filename == 'archive.tar'
         assert f.extension == 'gz'
         assert f.name == 'archive.tar.gz'
 
     def test_name_dotfile(self, root):
-        f = File(root, '.bashrc', '', ROOT_UID)
+        f = File('.bashrc', '', ROOT_UID, root)
         assert f.filename == ''
         assert f.extension == 'bashrc'
         assert f.name == '.bashrc'
@@ -216,37 +216,37 @@ class TestFile:
         assert readme.path == '/home/alice/readme.txt'
 
     def test_set_name_changes_filename_and_extension(self, root):
-        f = File(root, 'old.txt', '', ROOT_UID)
+        f = File('old.txt', '', ROOT_UID, root)
         f.set_name('new.md', ROOT_UID)
         assert f.filename == 'new'
         assert f.extension == 'md'
         assert f.name == 'new.md'
 
     def test_set_name_removes_extension(self, root):
-        f = File(root, 'old.txt', '', ROOT_UID)
+        f = File('old.txt', '', ROOT_UID, root)
         f.set_name('noext', ROOT_UID)
         assert f.filename == 'noext'
         assert f.extension is None
 
     def test_binary_contents_accepted(self, root):
         data = b'\x89PNG\r\n\x1a\n'
-        f = File(root, 'image.png', data, ROOT_UID)
+        f = File('image.png', data, ROOT_UID, root)
         assert f.get_contents(ROOT_UID) == data
 
     def test_list_contents_rejected_on_create_and_set(self, root):
         with pytest.raises(FileError):
-            File(root, 'bad.txt', [], ROOT_UID)
-        f = File(root, 'ok.txt', 'ok', ROOT_UID)
+            File('bad.txt', [], ROOT_UID, root)
+        f = File('ok.txt', 'ok', ROOT_UID, root)
         with pytest.raises(FileError):
             f.set_contents([], ROOT_UID)
 
     def test_switch_str_to_bytes_contents(self, root):
-        f = File(root, 'test.txt', 'text', ROOT_UID)
+        f = File('test.txt', 'text', ROOT_UID, root)
         f.set_contents(b'binary', ROOT_UID)
         assert f.get_contents(ROOT_UID) == b'binary'
 
     def test_str_representation_is_path(self, root):
-        f = File(root, 'test.txt', '', ROOT_UID)
+        f = File('test.txt', '', ROOT_UID, root)
         root.add(f, ROOT_UID)
         assert str(f) == '/test.txt'
 
@@ -262,70 +262,70 @@ class TestDirectory:
         assert alice.path == '/home/alice/'
 
     def test_add_and_lookup(self, root):
-        d = Directory(root, 'dir', [], ROOT_UID)
+        d = Directory('dir', [], ROOT_UID, root)
         root.add(d, ROOT_UID)
         assert root['dir'] is d
 
     def test_add_file_to_directory(self, root):
-        d = Directory(root, 'dir', [], ROOT_UID)
+        d = Directory('dir', [], ROOT_UID, root)
         root.add(d, ROOT_UID)
-        f = File(d, 'hello.txt', 'world', ROOT_UID)
+        f = File('hello.txt', 'world', ROOT_UID, d)
         d.add(f, ROOT_UID)
         assert d['hello.txt'] is f
 
     def test_contains_by_name(self, root):
-        d = Directory(root, 'dir', [], ROOT_UID)
+        d = Directory('dir', [], ROOT_UID, root)
         root.add(d, ROOT_UID)
-        f = File(d, 'a.txt', '', ROOT_UID)
+        f = File('a.txt', '', ROOT_UID, d)
         d.add(f, ROOT_UID)
         assert 'a.txt' in d
         assert 'b.txt' not in d
 
     def test_contains_by_object(self, root):
-        d = Directory(root, 'dir', [], ROOT_UID)
+        d = Directory('dir', [], ROOT_UID, root)
         root.add(d, ROOT_UID)
-        f = File(d, 'a.txt', '', ROOT_UID)
+        f = File('a.txt', '', ROOT_UID, d)
         d.add(f, ROOT_UID)
         assert f in d
 
     def test_getitem_nonexistent_raises(self, root):
-        d = Directory(root, 'dir', [], ROOT_UID)
+        d = Directory('dir', [], ROOT_UID, root)
         root.add(d, ROOT_UID)
         with pytest.raises(DirectoryError):
             d['nope']
 
     def test_duplicate_name_rejected(self, root):
-        d = Directory(root, 'dir', [], ROOT_UID)
+        d = Directory('dir', [], ROOT_UID, root)
         root.add(d, ROOT_UID)
-        f1 = File(d, 'same.txt', 'a', ROOT_UID)
+        f1 = File('same.txt', 'a', ROOT_UID, d)
         d.add(f1, ROOT_UID)
-        f2 = File(d, 'same.txt', 'b', ROOT_UID)
+        f2 = File('same.txt', 'b', ROOT_UID, d)
         with pytest.raises(DirectoryError):
             d.add(f2, ROOT_UID)
 
     def test_delete_removes_child(self, root):
-        d = Directory(root, 'dir', [], ROOT_UID)
+        d = Directory('dir', [], ROOT_UID, root)
         root.add(d, ROOT_UID)
-        f = File(d, 'a.txt', '', ROOT_UID)
+        f = File('a.txt', '', ROOT_UID, d)
         d.add(f, ROOT_UID)
         d.delete(f, ROOT_UID)
         assert 'a.txt' not in d
 
     def test_add_requires_write_permission(self, root):
-        d = Directory(root, 'dir', [], USER_UID)
+        d = Directory('dir', [], USER_UID, root)
         root.add(d, ROOT_UID)
         d.set_permissions(
             Permissions(PermTriplet(True, False, True), PermTriplet(False, False, False)),
             USER_UID,
         )
-        f = File(d, 'x.txt', '', USER_UID)
+        f = File('x.txt', '', USER_UID, d)
         with pytest.raises(FSPermissionError):
             d.add(f, USER_UID)
 
     def test_delete_requires_write_permission(self, root):
-        d = Directory(root, 'dir', [], USER_UID)
+        d = Directory('dir', [], USER_UID, root)
         root.add(d, ROOT_UID)
-        f = File(d, 'x.txt', '', USER_UID)
+        f = File('x.txt', '', USER_UID, d)
         d.add(f, USER_UID)
         d.set_permissions(
             Permissions(PermTriplet(True, False, True), PermTriplet(False, False, False)),
@@ -335,20 +335,20 @@ class TestDirectory:
             d.delete(f, USER_UID)
 
     def test_nested_directories_path(self, root):
-        a = Directory(root, 'a', [], ROOT_UID)
+        a = Directory('a', [], ROOT_UID, root)
         root.add(a, ROOT_UID)
-        b = Directory(a, 'b', [], ROOT_UID)
+        b = Directory('b', [], ROOT_UID, a)
         a.add(b, ROOT_UID)
-        c = Directory(b, 'c', [], ROOT_UID)
+        c = Directory('c', [], ROOT_UID, b)
         b.add(c, ROOT_UID)
         assert c.path == '/a/b/c/'
 
     def test_get_contents_sorted(self, root):
-        d = Directory(root, 'mixed', [], ROOT_UID)
+        d = Directory('mixed', [], ROOT_UID, root)
         root.add(d, ROOT_UID)
-        f = File(d, 'file.txt', '', ROOT_UID)
+        f = File('file.txt', '', ROOT_UID, d)
         d.add(f, ROOT_UID)
-        sub = Directory(d, 'subdir', [], ROOT_UID)
+        sub = Directory('subdir', [], ROOT_UID, d)
         d.add(sub, ROOT_UID)
         sorted_contents = d.get_contents_sorted()
         # Directory class name < File class name alphabetically
@@ -357,26 +357,26 @@ class TestDirectory:
 
     def test_contents_must_be_list(self, root):
         with pytest.raises(DirectoryError):
-            Directory(root, 'bad', 'string_contents', ROOT_UID)
+            Directory('bad', 'string_contents', ROOT_UID, root)
 
     def test_contents_elements_must_be_storage_units(self, root):
         with pytest.raises(DirectoryError):
-            d = Directory(root, 'bad', [], ROOT_UID)
+            d = Directory('bad', [], ROOT_UID, root)
             d.add("not a storage unit", ROOT_UID)
 
     def test_non_owner_with_write_can_add(self, root):
         """Others have write by default, so non-owners should be able to add."""
-        d = Directory(root, 'shared', [], USER_UID)
+        d = Directory('shared', [], USER_UID, root)
         root.add(d, ROOT_UID)
-        f = File(d, 'contrib.txt', 'data', OTHER_UID)
+        f = File('contrib.txt', 'data', OTHER_UID, d)
         d.add(f, OTHER_UID)  # others have write=True by default
         assert 'contrib.txt' in d
 
     def test_multiple_children(self, root):
-        d = Directory(root, 'multi', [], ROOT_UID)
+        d = Directory('multi', [], ROOT_UID, root)
         root.add(d, ROOT_UID)
         for i in range(10):
-            f = File(d, f'file{i}.txt', f'content{i}', ROOT_UID)
+            f = File(f'file{i}.txt', f'content{i}', ROOT_UID, d)
             d.add(f, ROOT_UID)
         assert len(d.get_contents(ROOT_UID)) == 10
         for i in range(10):
@@ -402,7 +402,7 @@ class TestRootDir:
 
     def test_cannot_set_parent(self):
         r = RootDir()
-        d = Directory(r, 'tmp', [], ROOT_UID)
+        d = Directory('tmp', [], ROOT_UID, r)
         r.add(d, ROOT_UID)
         with pytest.raises(RootDirError):
             r.set_parent(d, ROOT_UID)
@@ -456,7 +456,7 @@ class TestIntegration:
 
     def test_restrict_then_restore_permissions(self, root):
         """Owner locks themselves out, root restores access."""
-        f = File(root, 'test.txt', 'data', USER_UID)
+        f = File('test.txt', 'data', USER_UID, root)
         root.add(f, ROOT_UID)
         f.set_permissions(
             Permissions(PermTriplet(False, False, False), PermTriplet(False, False, False)),
@@ -472,7 +472,7 @@ class TestIntegration:
 
     def test_ownership_transfer_flips_access(self, root):
         """chown from USER to OTHER: old owner loses access, new owner gains it."""
-        f = File(root, 'secret.txt', 'classified', USER_UID)
+        f = File('secret.txt', 'classified', USER_UID, root)
         root.add(f, ROOT_UID)
         f.set_permissions(
             Permissions(PermTriplet(True, True, True), PermTriplet(False, False, False)),
@@ -486,16 +486,16 @@ class TestIntegration:
 
     def test_mixed_ownership_tree(self, root):
         """Root-owned /etc/passwd unreadable by alice; alice-owned file readable by alice."""
-        etc = Directory(root, 'etc', [], ROOT_UID)
+        etc = Directory('etc', [], ROOT_UID, root)
         root.add(etc, ROOT_UID)
-        passwd = File(etc, 'passwd', 'root:x:0:0', ROOT_UID)
+        passwd = File('passwd', 'root:x:0:0', ROOT_UID, etc)
         etc.add(passwd, ROOT_UID)
 
-        home = Directory(root, 'home', [], ROOT_UID)
+        home = Directory('home', [], ROOT_UID, root)
         root.add(home, ROOT_UID)
-        alice_dir = Directory(home, 'alice', [], USER_UID)
+        alice_dir = Directory('alice', [], USER_UID, home)
         home.add(alice_dir, ROOT_UID)
-        notes = File(alice_dir, 'notes.txt', 'my notes', USER_UID)
+        notes = File('notes.txt', 'my notes', USER_UID, alice_dir)
         alice_dir.add(notes, USER_UID)
 
         assert notes.get_contents(USER_UID) == 'my notes'
@@ -505,10 +505,10 @@ class TestIntegration:
     def test_deep_nesting_path_resolution(self, root):
         current = root
         for name in ['a', 'b', 'c', 'd', 'e']:
-            d = Directory(current, name, [], ROOT_UID)
+            d = Directory(name, [], ROOT_UID, current)
             current.add(d, ROOT_UID)
             current = d
-        f = File(current, 'deep.txt', 'found me', ROOT_UID)
+        f = File('deep.txt', 'found me', ROOT_UID, current)
         current.add(f, ROOT_UID)
         assert f.path == '/a/b/c/d/e/deep.txt'
 
@@ -521,11 +521,11 @@ class TestIntegration:
 
     def test_set_parent_checks_write_on_target_directory(self, root):
         """set_parent needs write on both the SU and the new parent."""
-        d1 = Directory(root, 'd1', [], USER_UID)
+        d1 = Directory('d1', [], USER_UID, root)
         root.add(d1, ROOT_UID)
-        d2 = Directory(root, 'd2', [], USER_UID)
+        d2 = Directory('d2', [], USER_UID, root)
         root.add(d2, ROOT_UID)
-        f = File(d1, 'f.txt', '', USER_UID)
+        f = File('f.txt', '', USER_UID, d1)
         d1.add(f, USER_UID)
 
         d2.set_permissions(
@@ -537,9 +537,9 @@ class TestIntegration:
 
     def test_add_delete_add_cycle(self, root):
         """Add 3 files, delete the middle one, verify state."""
-        d = Directory(root, 'workspace', [], ROOT_UID)
+        d = Directory('workspace', [], ROOT_UID, root)
         root.add(d, ROOT_UID)
-        files = [File(d, f'{c}.txt', c, ROOT_UID) for c in 'abc']
+        files = [File(f'{c}.txt', c, ROOT_UID, d) for c in 'abc']
         for f in files:
             d.add(f, ROOT_UID)
         d.delete(files[1], ROOT_UID)
@@ -549,19 +549,19 @@ class TestIntegration:
 
     def test_delete_then_readd_same_name(self, root):
         """After deleting a file, adding a new one with the same name should work."""
-        d = Directory(root, 'dir', [], ROOT_UID)
+        d = Directory('dir', [], ROOT_UID, root)
         root.add(d, ROOT_UID)
-        f1 = File(d, 'x.txt', 'v1', ROOT_UID)
+        f1 = File('x.txt', 'v1', ROOT_UID, d)
         d.add(f1, ROOT_UID)
         d.delete(f1, ROOT_UID)
-        f2 = File(d, 'x.txt', 'v2', ROOT_UID)
+        f2 = File('x.txt', 'v2', ROOT_UID, d)
         d.add(f2, ROOT_UID)
         assert d['x.txt'] is f2
         assert f2.get_contents(ROOT_UID) == 'v2'
 
     def test_root_writes_to_fully_locked_file(self, root):
         """Root bypasses even 000 permissions on all operations."""
-        f = File(root, 'locked.txt', 'original', USER_UID)
+        f = File('locked.txt', 'original', USER_UID, root)
         root.add(f, ROOT_UID)
         f.set_permissions(
             Permissions(PermTriplet(False, False, False), PermTriplet(False, False, False)),
