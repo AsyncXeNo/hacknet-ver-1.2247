@@ -1,11 +1,12 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 if TYPE_CHECKING:
-    from simulation.node.hardware import Computer, NetworkAdapterAccess
+    from simulation.node.hardware import Computer, NetworkAdapterAccess, ComputerSwitchedOff
 from simulation.fs.user import User
 from simulation.node.hardware import HardwareResource
 from simulation.node.application import Application
 from simulation.node.constants import BASE_FS
+from simulation.node.software import FileSystemAccess
 from simulation.fs import RootDir, File, Directory
 import random
 import secrets
@@ -13,7 +14,7 @@ from copy import deepcopy
 from better_exceptions import LoggingException
 from loguru_config import get_subsystem_logger
 from simulation.network.base import Port, Packet, SocketAddr
-from abc import ABC
+from enum import Enum
 from threading import Thread
 from collections import defaultdict
 from utils import FunctionGroup
@@ -27,28 +28,79 @@ class PortInUseException(OSException):
     def __init__(self, message, *args):
         super().__init__(message=message, *args)
 
+class InvalidUserException(OSException):
+    def __init__(self, message, *args):
+        super().__init__(message=message, *args)
+
+class NotAFileException(OSException):
+    def __init__(self, message, *args):
+        super().__init__(message=message, *args)
+
+class NotADirectoryException(OSException):
+    def __init__(self, message, *args):
+        super().__init__(message=message, *args)
+
+class TooManyUsersException(OSException):
+    def __init__(self, message, *args):
+        super().__init__(message=message, *args)
+
+class UserNotFoundException(OSException):
+    def __init__(self, message, *args):
+        super().__init__(message=message, *args)
+
+class InvalidPermissionException(OSException):
+    def __init__(self, message, *args):
+        super().__init__(message=message, *args)
+
+class UsernameAlreadyExistsException(OSException):
+    def __init__(self, message, *args):
+        super().__init__(message=message, *args)
+
+class InvalidPasswordException(OSException):
+    def __init__(self, message, *args):
+        super().__init__(message=message, *args)
+
+class InvalidPathException(OSException):
+    def __init__(self, message, *args):
+        super().__init__(message=message, *args)
+
+
+class SoftwareResource(Enum):
+    FS=0
+
+
+SoftwareAccess: TypeAlias = 'FileSystemAccess'
+
 
 class OperatingSystem(object):
     def __init__(self, root_password: str, apps: list[Application] | None = None) -> None:
         root = User.with_password(0, 'root', root_password, "System Administrator")
         self.owner: Computer | None = None
-            
-        self.fs: RootDir = deepcopy(BASE_FS)
-        self.fs['etc']['passwd'].set_contents(root.passwd_line + '\n', 0)
-        self.fs['etc']['shadow'].set_contents(root.shadow_line + '\n', 0)
-        self.fs['boot']['vmlinuz'].set_contents(secrets.token_bytes(1024), 0)
-        self.fs['boot']['initrd.img'].set_contents(secrets.token_bytes(1024), 0)
+
+        fs: RootDir = deepcopy(BASE_FS)
+        fs['etc']['passwd'].set_contents(root.passwd_line + '\n', 0)
+        fs['etc']['shadow'].set_contents(root.shadow_line + '\n', 0)
+        fs['boot']['vmlinuz'].set_contents(secrets.token_bytes(1024), 0)
+        fs['boot']['initrd.img'].set_contents(secrets.token_bytes(1024), 0)
+
+        self.fs_access = FileSystemAccess(self, fs)
 
         apps = apps or []
         for app in apps:
             self.install(app)
-            
+
         self.port_mapping: dict[Application, list[Port]] = defaultdict(list)
         self.temp_port_blocks: dict[Application, list[Port]] = defaultdict(list)
 
         self.buffer: dict[Application, list[Packet]] = defaultdict(list)
-        
+
         self.syscall = FunctionGroup(self, 'syscall')
+
+    def get_resource(self, res: SoftwareResource) -> SoftwareAccess:
+        if not self.owner.on: raise ComputerSwitchedOff('Cannot get resource when computer is switched off.')
+        match(res):
+            case SoftwareResource.FS:
+                return self.fs_access
 
     @property
     def ports_in_use(self) -> list[Port]:
@@ -130,6 +182,10 @@ class OperatingSystem(object):
             packets = self.buffer.pop(app)
             return packets
         return None
+    
+    def user_update_propogate(self) -> None:
+        #TODO: propogate
+        pass
 
     def install(self, app: Application):
         pass

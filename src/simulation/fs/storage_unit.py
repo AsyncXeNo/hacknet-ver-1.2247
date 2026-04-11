@@ -4,6 +4,7 @@ from simulation.fs.constants import INVALID_CHARACTERS
 from better_exceptions import LoggingException
 from loguru_config import get_subsystem_logger
 from simulation.fs.permissions import Permissions, PermTriplet
+from abc import ABC, abstractmethod
 from enum import Enum
 import inspect
 
@@ -28,10 +29,10 @@ class FSPermissionError(StorageUnitError):
 
 
 
-class StorageUnit(object):
+class StorageUnit(ABC):
     """Class representing a storage unit in the virtual file system"""
 
-    def __init__(self, name: str, contents: str | bytes | list[StorageUnit], owner_uid: int, parent: Directory | None = None) -> None:
+    def __init__(self, name: str, contents: bytes | list[StorageUnit], owner_uid: int, parent: Directory | None = None) -> None:
 
         self.owner_uid: int = owner_uid
         self.permissions: Permissions = Permissions(PermTriplet(True, True, True),
@@ -39,7 +40,7 @@ class StorageUnit(object):
         if parent is not None:
             self.parent: Directory | None = parent
         self.name: str = name
-        self.contents: str | bytes | list[StorageUnit] = contents
+        self.contents: bytes | list[StorageUnit] = contents
 
     def __setattr__(self, name, value):
 
@@ -68,7 +69,7 @@ class StorageUnit(object):
 
         return super().__getattribute__(name)
 
-    def get_contents(self, user_uid: int) -> str | bytes | list[StorageUnit]:
+    def get_contents(self, user_uid: int) -> bytes | list[StorageUnit]:
         if not self.has_permission(user_uid, Action.READ):
             raise FSPermissionError(f"user {user_uid} doesn't have permission to read contents")
         return self.contents
@@ -85,7 +86,7 @@ class StorageUnit(object):
             raise FSPermissionError(f"user {user_uid} doesn't have permission to change name")
         self.name = name
         
-    def set_contents(self, contents: str | bytes | list[StorageUnit], user_uid: int) -> None:
+    def set_contents(self, contents: bytes | list[StorageUnit], user_uid: int) -> None:
         if not self.has_permission(user_uid, Action.WRITE):
             raise FSPermissionError(f"user {user_uid} doesn't have permission to set contents")
         self.contents = contents
@@ -99,6 +100,11 @@ class StorageUnit(object):
         if user_uid not in [0, self.owner_uid]:
             raise FSPermissionError(f"user {user_uid} doesn't have permissions to change permissions")
         self.permissions = new_permissions
+
+    @property
+    @abstractmethod
+    def path(self):
+        pass
 
     # Validation
 
@@ -126,11 +132,11 @@ class StorageUnit(object):
             if letter in INVALID_CHARACTERS:
                 raise StorageUnitError(f'Storage unit\'s name cannot have any of the following characters -> {INVALID_CHARACTERS}')
 
-    def _validate_contents(self, contents: str | bytes | list[StorageUnit]) -> None:
+    @abstractmethod
+    def _validate_contents(self, contents: bytes | list[StorageUnit]) -> None:
         """Checks if the contents are valid"""
+        pass
 
-        if not (isinstance(contents, str) or isinstance(contents, bytes) or isinstance(contents, list)):
-            raise StorageUnitError('Storage unit\'s contents need to be of one of the following types -> str, bytes, list[StorageUnit]')
 
     # Helper functions
 

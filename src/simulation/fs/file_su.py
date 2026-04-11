@@ -18,7 +18,7 @@ class FileError(LoggingException):
 class File(StorageUnit):
     """Class representing a file in the virtual file system"""
 
-    def __init__(self, name: str, contents: str | bytes, owner_uid: int, parent: Directory | None=None) -> None:
+    def __init__(self, name: str, contents: bytes, owner_uid: int, parent: Directory | None=None) -> None:
 
         self.filename: str
         self.extension: str | None
@@ -61,10 +61,8 @@ class File(StorageUnit):
 
     # Validation
 
-    def _validate_contents(self, contents: str | bytes) -> None:
+    def _validate_contents(self, contents: bytes) -> None:
         """Checks if the contents are valid"""
         
-        super()._validate_contents(contents)
-
-        if isinstance(contents, list):
-            raise FileError('File\'s contents need to be of one of the following types -> str, bytes')
+        if not isinstance(contents, bytes):
+            raise FileError('File\'s contents need to be of one of the following types -> bytes')

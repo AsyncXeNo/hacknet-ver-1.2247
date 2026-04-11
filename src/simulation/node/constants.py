@@ -10,8 +10,8 @@ BASE_FS = RootDir([
     ], 0),
 
     Directory('etc', [
-        File('passwd', 'root:x:0:0:System Administrator:/root:/bin/bash\n', 0),
-        File('shadow', 'root:{password}:::::::\n', 0),
+        File('passwd', b'root:x:0:0:System Administrator:/root:/bin/bash\n', 0),
+        File('shadow', b'root:{password}:::::::\n', 0),
         File('hostname', b'', 0),
     ], 0),
 

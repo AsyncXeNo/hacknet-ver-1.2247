@@ -41,6 +41,21 @@ class User:
             hashed_password,
         )
 
+    @classmethod
+    def from_files(
+        cls,
+        passwd_line,
+        shadow_line
+    ):
+        passwd_items = passwd_line.split(':')
+        shadow_items = shadow_line.split(':')
+        return cls(
+            int(passwd_items[2]),
+            passwd_items[0],
+            passwd_items[4],
+            shadow_items[1]
+        )
+
     @staticmethod
     def hash_passwd(password: str) -> str:
         salt = base64.b64encode(
