@@ -1,13 +1,18 @@
 from __future__ import annotations
 import random
 from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from simulation.fs.directory import RootDir
-    from simulation.fs.file_su import File, Directory
-    from simulation.fs.storage_unit import StorageUnit
-    from simulation.fs.user import User
-    from simulation.node.op_sys import OperatingSystem, InvalidUserException, NotAFileException, NotADirectoryException, TooManyUsersException, UserNotFoundException, InvalidPermissionException, UsernameAlreadyExistsException, InvalidPasswordException, InvalidPathException
 
+if TYPE_CHECKING:
+    from simulation.fs.storage_unit import StorageUnit
+    from simulation.node.op_sys import OperatingSystem
+
+from loguru_config import get_subsystem_logger
+from simulation.node.exceptions import InvalidUserException, NotAFileException, NotADirectoryException, TooManyUsersException, UserNotFoundException, InvalidPermissionException, UsernameAlreadyExistsException, InvalidPasswordException, InvalidPathException
+from simulation.fs.user import User
+from simulation.fs.file_su import File
+from simulation.fs.directory import RootDir, Directory
+
+logger = get_subsystem_logger('software')
 
 class FileSystemAccess(object):
     def __init__(self, os: OperatingSystem, fs: RootDir):
@@ -27,11 +32,11 @@ class FileSystemAccess(object):
     def user_required(user_id: int | None = None):
         def decorator(f):
             def wrapped(self, *args, **kwargs):
-                if user_id:
+                if user_id is not None:
                     assert self.user.uid == user_id, "Invalid user. Transaction invalidated."
                 else:
                     assert self.user is not None, "Invalid user. Transaction invalidated."
-
+                
                 return f(self, *args, **kwargs)
             return wrapped
         return decorator
@@ -80,11 +85,11 @@ class FileSystemAccess(object):
         shadow_file = self.read_file('/etc/shadow').decode()
         passwd_lines = passwd_file.splitlines()
         shadow_lines = shadow_file.splitlines()
-        passwd_user_ids = list(map( lambda line: int(line.split(':')[2]), passwd_lines))
-        shadow_user_ids = list(map( lambda line: int(line.split(':')[2]), shadow_lines))
+        passwd_users = list(map( lambda line: line.split(':')[0], passwd_lines))
+        shadow_users = list(map( lambda line: line.split(':')[0], shadow_lines))
         try:
-            passwd_index = passwd_user_ids.index(user.uid)
-            shadow_index = shadow_user_ids.index(user.uid)
+            passwd_index = passwd_users.index(user.username)
+            shadow_index = shadow_users.index(user.username)
             del passwd_lines[passwd_index]
             del shadow_lines[shadow_index]
             passwd_contents = '\n'.join(passwd_lines).encode('utf-8')
@@ -99,47 +104,57 @@ class FileSystemAccess(object):
     @user_update_propogate 
     def update_user(self, user_uid: int, username: str | None=None, display_name: str | None = None, password: str | None = None):
         
+        passwd_file = self.get_su_at_path('/etc/passwd')
+        shadow_file = self.get_su_at_path('/etc/shadow')
+        passwd_lines = passwd_file.get_contents(0).decode('utf-8').splitlines()
+        shadow_lines = shadow_file.get_contents(0).decode('utf-8').splitlines()
+
+        passwd_user_ids = list(map( lambda line: int(line.split(':')[2]), passwd_lines))
+        shadow_users = list(map( lambda line: line.split(':')[0], shadow_lines))
+
+        try:
+            passwd_index = passwd_user_ids.index(user_uid)
+            passwd_line = passwd_lines[passwd_index]
+            old_username = passwd_line.split(':')[0]
+            old_display_name = passwd_line.split(':')[4]
+            shadow_index = shadow_users.index(old_username)
+            old_hashed_password = shadow_lines[shadow_index].split(':')[1]
+        except ValueError:
+            raise UserNotFoundException(f"user {new_user.display_name} not found.")
+
         new_user = (
             User.with_password(user_uid, 
-                               username = username or self.user.username, 
+                               username = username or old_username, 
                                password = password, 
-                               display_name = display_name or self.user.display_name) 
+                               display_name = display_name or old_display_name) 
             if password else 
             User.with_hashed_password(user_uid,
-                                      username = username or self.user.username,
-                                      password = self.user.hashed_password,
-                                      display_name = display_name or self.user.display_name)
+                                      username = username or old_username,
+                                      hashed_password = old_hashed_password,
+                                      display_name = display_name or old_display_name)
         )
-
-        passwd_file = self.read_file('/etc/passwd').decode()
-        shadow_file = self.read_file('/etc/shadow').decode()
-        passwd_lines = passwd_file.splitlines()
-        shadow_lines = shadow_file.splitlines()
 
         if new_user.uid != self.user.uid and self.user.uid != 0:
             items = list(map(lambda line: line.split(':'), passwd_lines))
             old_display_name = next(filter(lambda line: line[2] == str(new_user.uid) , items))[4]
             
             raise InvalidPermissionException(f"User {self.user.display_name} does not have permission to change {old_display_name}'s permissions")
-        
-        passwd_user_ids = list(map( lambda line: int(line.split(':')[2]), passwd_lines))
-        shadow_user_ids = list(map( lambda line: int(line.split(':')[2]), shadow_lines))
+
         try:
-            passwd_index = passwd_user_ids.index(new_user.uid)
-            shadow_index = shadow_user_ids.index(new_user.uid)
+            shadow_index = shadow_users.index(old_username)
             passwd_lines[passwd_index] = new_user.passwd_line
             shadow_lines[shadow_index] = new_user.shadow_line
             passwd_contents = '\n'.join(passwd_lines).encode('utf-8')
             shadow_contents = '\n'.join(shadow_lines).encode('utf-8')
-            self.write_to_file('/etc/passwd', passwd_contents)
-            self.write_to_file('/etc/shadow', shadow_contents)
+            self.get_su_at_path('/etc/passwd').set_contents(passwd_contents, 0)
+            self.get_su_at_path('/etc/shadow').set_contents(shadow_contents, 0)
             
         except ValueError:
             raise UserNotFoundException(f"user {new_user.display_name} not found.")
 
     def login_helper(self, username: str, password: str) -> User:
-        passwd_lines = self.read_file('/etc/passwd').decode().splitlines()
-        shadow_lines = self.read_file('/etc/shadow').decode().splitlines()
+        passwd_lines = self.get_su_at_path('/etc/passwd').get_contents(0).decode().splitlines()
+        shadow_lines = self.get_su_at_path('/etc/shadow').get_contents(0).decode().splitlines()
         try:
             passwd_line = next(filter(lambda line: line.partition(":")[0] == username, passwd_lines))
             shadow_line = next(filter(lambda line: line.partition(":")[0] == username, shadow_lines))
@@ -165,7 +180,11 @@ class FileSystemAccess(object):
 
     @user_required()
     def create_file(self, path: str, base='/') -> None:
-        parent_path, file_name = path.rsplit('/', 1)
+        if '/' in path:
+            parent_path, file_name = path.rsplit('/', 1)
+        else:
+            parent_path = '.'
+            file_name = path
         parent: StorageUnit = self.get_su_at_path(parent_path, base)
         if not isinstance(parent, Directory):
             raise NotADirectoryException(f"{parent.path} is not a directory")
@@ -200,7 +219,11 @@ class FileSystemAccess(object):
 
     @user_required()
     def create_dir(self, path: str, base='/') -> None:
-        parent_path, dir_name = path.rsplit('/', 1)
+        if '/' in path:
+            parent_path, dir_name = path.rsplit('/', 1)
+        else:
+            parent_path = '.'
+            dir_name = path
         parent: StorageUnit = self.get_su_at_path(parent_path, base)
         if not isinstance(parent, Directory):
             raise NotADirectoryException(f"{parent.path} is not a directory")

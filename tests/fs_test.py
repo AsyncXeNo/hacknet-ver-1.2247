@@ -6,7 +6,8 @@ from simulation.fs.storage_unit import StorageUnitError, FSPermissionError, Acti
 from simulation.fs.permissions import Permissions, PermTriplet
 from simulation.fs.user import User
 from simulation.node.software import FileSystemAccess, Transaction
-from simulation.node.op_sys import OperatingSystem, InvalidUserException, NotAFileException, NotADirectoryException, TooManyUsersException, UserNotFoundException, InvalidPermissionException, UsernameAlreadyExistsException, InvalidPasswordException
+from simulation.node.op_sys import OperatingSystem 
+from simulation.node.exceptions import InvalidUserException, NotAFileException, NotADirectoryException, TooManyUsersException, UserNotFoundException, InvalidPermissionException, UsernameAlreadyExistsException, InvalidPasswordException, InvalidPathException
 
 ROOT_UID = 0
 USER_UID = 100
@@ -791,14 +792,16 @@ class TestFileSystemAccessUserManagement:
 
     def test_update_user_fields(self, fs_access, root_user):
         with Transaction(fs_access, root_user):
-            fs_access.update_user(ROOT_UID, username='superroot', display_name='Super Root')
-            user = fs_access.login_helper('superroot', ROOT_PASSWORD)
-            assert user.display_name == 'Super Root'
+            fs_access.create_user('eve', 'Eve', 'evepass')
+            eve: User = fs_access.login_helper('eve', 'evepass')
+        with Transaction(fs_access, eve):
+            fs_access.update_user(eve.uid, username='noteve', display_name='Not Eve', password='notevepass')
+            user = fs_access.login_helper('noteve', 'notevepass')
+            assert user.display_name == 'Not Eve'
 
     def test_update_user_password(self, fs_access, root_user):
         with Transaction(fs_access, root_user):
             fs_access.create_user('charlie', 'Charlie', 'oldpass')
-        charlie = User.with_password(1, 'charlie', 'oldpass', 'Charlie')  # uid doesn't matter for login
         with Transaction(fs_access, root_user):
             charlie = fs_access.login_helper('charlie', 'oldpass')
             fs_access.update_user(charlie.uid, password='newpass')
@@ -814,3 +817,146 @@ class TestFileSystemAccessUserManagement:
         with Transaction(fs_access, dave):
             with pytest.raises(InvalidPermissionException):
                 fs_access.update_user(ROOT_UID, display_name='Hacked')
+
+    def test_update_self_as_non_root(self, fs_access, root_user):
+        """Non-root updating their own record should succeed."""
+        with Transaction(fs_access, root_user):
+            fs_access.create_user('eve', 'Eve', 'evepass')
+            eve = fs_access.login_helper('eve', 'evepass')
+        with Transaction(fs_access, eve):
+            fs_access.update_user(eve.uid, display_name='Evelyn')
+            refreshed = fs_access.login_helper('eve', 'evepass')
+            assert refreshed.display_name == 'Evelyn'
+
+    def test_delete_user_non_root_asserts(self, fs_access, root_user):
+        with Transaction(fs_access, root_user):
+            fs_access.create_user('eve', 'Eve', 'evepass')
+            fs_access.create_user('mallory', 'Mallory', 'mallpass')
+            eve = fs_access.login_helper('eve', 'evepass')
+            mallory = fs_access.login_helper('mallory', 'mallpass')
+        with Transaction(fs_access, eve):
+            with pytest.raises(AssertionError):
+                fs_access.delete_user(mallory)
+
+
+# ─── FileSystemAccess additional coverage ───────────────────────────────────
+
+
+class TestFileSystemAccessPathResolutionExtra:
+    def test_dotdot_above_root_raises(self, fs_access, root_user):
+        with Transaction(fs_access, root_user):
+            with pytest.raises(InvalidPathException):
+                fs_access.get_su_at_path('/..')
+
+    def test_trailing_slash_stripped(self, fs_access, root_user):
+        with Transaction(fs_access, root_user):
+            su = fs_access.get_su_at_path('/etc/')
+            assert su.name == 'etc'
+
+
+class TestFileSystemAccessCRUDExtra:
+    def test_read_file_with_base(self, fs_access, root_user):
+        with Transaction(fs_access, root_user):
+            contents = fs_access.read_file('passwd', base='/etc/')
+            assert b'root' in contents
+
+    def test_write_to_file_with_base(self, fs_access, root_user):
+        with Transaction(fs_access, root_user):
+            fs_access.write_to_file('hostname', b'host1', base='/etc/')
+            assert fs_access.read_file('/etc/hostname') == b'host1'
+
+    def test_append_to_file_with_base(self, fs_access, root_user):
+        with Transaction(fs_access, root_user):
+            fs_access.write_to_file('/etc/hostname', b'a')
+            fs_access.append_to_file('hostname', b'b', base='/etc/')
+            assert fs_access.read_file('/etc/hostname') == b'ab'
+
+    def test_create_file_with_base(self, fs_access, root_user):
+        with Transaction(fs_access, root_user):
+            fs_access.create_file('newfile.txt', base='/tmp/')
+            assert fs_access.read_file('/tmp/newfile.txt') == b''
+
+    def test_delete_file_with_base(self, fs_access, root_user):
+        with Transaction(fs_access, root_user):
+            fs_access.create_file('/tmp/die.txt')
+            fs_access.delete_file('die.txt', base='/tmp/')
+            with pytest.raises(Exception):
+                fs_access.read_file('/tmp/die.txt')
+
+    def test_read_dir_with_base(self, fs_access, root_user):
+        with Transaction(fs_access, root_user):
+            contents = fs_access.read_dir('etc', base='/')
+            names = [su.name for su in contents]
+            assert 'passwd' in names
+
+    def test_create_dir_with_base(self, fs_access, root_user):
+        with Transaction(fs_access, root_user):
+            fs_access.create_dir('sub', base='/tmp/')
+            assert fs_access.read_dir('/tmp/sub') == []
+
+    def test_delete_dir_with_base(self, fs_access, root_user):
+        with Transaction(fs_access, root_user):
+            fs_access.create_dir('/tmp/gone')
+            fs_access.delete_dir('gone', base='/tmp/')
+            with pytest.raises(Exception):
+                fs_access.read_dir('/tmp/gone')
+
+    def test_create_dir_bad_parent_raises(self, fs_access, root_user):
+        with Transaction(fs_access, root_user):
+            with pytest.raises(NotADirectoryException):
+                fs_access.create_dir('/etc/hostname/impossible')
+
+    def test_delete_dir_on_file_raises(self, fs_access, root_user):
+        with Transaction(fs_access, root_user):
+            with pytest.raises(NotADirectoryException):
+                fs_access.delete_dir('/etc/hostname')
+
+    def test_read_file_permission_denied(self, fs_access, root_user):
+        """Non-root user reading a root-owned file with others=-w- is blocked."""
+        with Transaction(fs_access, root_user):
+            fs_access.create_user('alice', 'Alice', 'pass')
+            alice = fs_access.login_helper('alice', 'pass')
+        with Transaction(fs_access, alice):
+            with pytest.raises(FSPermissionError):
+                fs_access.read_file('/etc/shadow')
+
+    def test_read_dir_permission_denied(self, fs_access, root_user):
+        """Non-root user reading a locked-down root-owned directory is blocked."""
+        with Transaction(fs_access, root_user):
+            fs_access.create_user('alice', 'Alice', 'pass')
+            alice = fs_access.login_helper('alice', 'pass')
+            root_dir = fs_access.get_su_at_path('/root')
+            root_dir.set_permissions(
+                Permissions(PermTriplet(True, True, True), PermTriplet(False, False, False)),
+                ROOT_UID,
+            )
+        with Transaction(fs_access, alice):
+            with pytest.raises(FSPermissionError):
+                fs_access.read_dir('/root')
+
+
+class TestFileSystemAccessNoUserExtra:
+    def test_append_to_file_no_user_asserts(self, fs_access):
+        with pytest.raises(AssertionError):
+            fs_access.append_to_file('/etc/hostname', b'x')
+
+    def test_delete_file_no_user_asserts(self, fs_access):
+        with pytest.raises(AssertionError):
+            fs_access.delete_file('/etc/hostname')
+
+    def test_read_dir_no_user_asserts(self, fs_access):
+        with pytest.raises(AssertionError):
+            fs_access.read_dir('/etc')
+
+    def test_delete_dir_no_user_asserts(self, fs_access):
+        with pytest.raises(AssertionError):
+            fs_access.delete_dir('/etc')
+
+
+class TestValidateUser:
+    def test_valid_user_returns_true(self, fs_access, root_user):
+        assert fs_access.validate_user(root_user) is True
+
+    def test_invalid_user_returns_false(self, fs_access):
+        ghost = User.with_password(999, 'ghost', 'pass', 'Ghost')
+        assert fs_access.validate_user(ghost) is False

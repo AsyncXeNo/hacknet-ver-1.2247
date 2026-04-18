@@ -1,5 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, TypeAlias
+
+from simulation.node.exceptions import OSException, PortInUseException
 if TYPE_CHECKING:
     from simulation.node.hardware import Computer, NetworkAdapterAccess, ComputerSwitchedOff
 from simulation.fs.user import User
@@ -20,51 +22,6 @@ from collections import defaultdict
 from utils import FunctionGroup
 
 
-class OSException(LoggingException):
-    def __init__(self, message, *args):
-        super().__init__(logger=get_subsystem_logger('os'), message=message, *args)
-
-class PortInUseException(OSException):
-    def __init__(self, message, *args):
-        super().__init__(message=message, *args)
-
-class InvalidUserException(OSException):
-    def __init__(self, message, *args):
-        super().__init__(message=message, *args)
-
-class NotAFileException(OSException):
-    def __init__(self, message, *args):
-        super().__init__(message=message, *args)
-
-class NotADirectoryException(OSException):
-    def __init__(self, message, *args):
-        super().__init__(message=message, *args)
-
-class TooManyUsersException(OSException):
-    def __init__(self, message, *args):
-        super().__init__(message=message, *args)
-
-class UserNotFoundException(OSException):
-    def __init__(self, message, *args):
-        super().__init__(message=message, *args)
-
-class InvalidPermissionException(OSException):
-    def __init__(self, message, *args):
-        super().__init__(message=message, *args)
-
-class UsernameAlreadyExistsException(OSException):
-    def __init__(self, message, *args):
-        super().__init__(message=message, *args)
-
-class InvalidPasswordException(OSException):
-    def __init__(self, message, *args):
-        super().__init__(message=message, *args)
-
-class InvalidPathException(OSException):
-    def __init__(self, message, *args):
-        super().__init__(message=message, *args)
-
-
 class SoftwareResource(Enum):
     FS=0
 
@@ -78,8 +35,8 @@ class OperatingSystem(object):
         self.owner: Computer | None = None
 
         fs: RootDir = deepcopy(BASE_FS)
-        fs['etc']['passwd'].set_contents(root.passwd_line + '\n', 0)
-        fs['etc']['shadow'].set_contents(root.shadow_line + '\n', 0)
+        fs['etc']['passwd'].set_contents((root.passwd_line + '\n').encode('utf-8'), 0)
+        fs['etc']['shadow'].set_contents((root.shadow_line + '\n').encode('utf-8'), 0)
         fs['boot']['vmlinuz'].set_contents(secrets.token_bytes(1024), 0)
         fs['boot']['initrd.img'].set_contents(secrets.token_bytes(1024), 0)
 

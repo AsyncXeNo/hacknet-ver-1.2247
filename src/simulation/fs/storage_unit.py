@@ -37,8 +37,7 @@ class StorageUnit(ABC):
         self.owner_uid: int = owner_uid
         self.permissions: Permissions = Permissions(PermTriplet(True, True, True),
                                                     PermTriplet(False, True, False))
-        if parent is not None:
-            self.parent: Directory | None = parent
+        self.parent: Directory | None = parent
         self.name: str = name
         self.contents: bytes | list[StorageUnit] = contents
 

@@ -35,12 +35,19 @@ class Directory(StorageUnit):
     def __getitem__(self, key) -> StorageUnit:
         try:
             pred = lambda su: su.name == key
-            logger.debug(self.contents)
             element = next(filter(pred, self.contents))
             return element
         except StopIteration:
             raise DirectoryError(f"Directory does not have storage unit {key}")
 
+
+    def __setattr__(self, name, value):
+        if name == 'contents' and isinstance(value, list):
+            for su in value:
+                assert isinstance(su, StorageUnit)
+                su.set_parent(self, 0)
+        
+        return super().__setattr__(name, value)
 
     # Getters
     def get_contents_sorted(self) -> str |  bytes | list[StorageUnit]:
@@ -62,7 +69,7 @@ class Directory(StorageUnit):
         if su.parent != self:
             if su.parent:
                 su.parent.delete(su)
-            su.set_parent(self)
+            su.set_parent(self, user_uid)
         self.contents.append(su)
 
 
@@ -105,6 +112,7 @@ class RootDir(Directory):
 
     def __init__(self, contents: list[StorageUnit] | None = None) -> None:
         contents: list[StorageUnit] = contents or []
+
         super().__init__('', contents, 0,None)
 
     @property

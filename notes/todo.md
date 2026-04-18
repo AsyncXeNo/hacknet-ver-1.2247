@@ -2,7 +2,7 @@
 
 ## What to do in next session?
 
-- [ ] File system Access should be an access to RootDir with extra functions for user stuff (CRUD) and other helper functions
+- [ ] Write tests for file system access, and make them pass
 
 ## What to do eventually?
 
@@ -18,4 +18,4 @@
 
 ***
 
-- [ ] Peripherals 
+- [ ] Peripherals

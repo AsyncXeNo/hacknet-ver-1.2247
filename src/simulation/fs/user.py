@@ -71,11 +71,11 @@ class User:
         return f"$6${salt}${hashed}"
 
     @property
-    def passwd_line(self):
+    def passwd_line(self) -> str:
         return ':'.join([self.username, 'x', str(self.uid), str(self.uid), self.display_name, '/root' if self.uid == 0 else '/home/' + self.username, '/bin/bash'])
     
     @property
-    def shadow_line(self):
+    def shadow_line(self) -> str:
         return f"{self.username}:{self.hashed_password}:::::::"
 
     @staticmethod
