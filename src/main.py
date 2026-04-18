@@ -1,11 +1,16 @@
-from loguru import logger
+from game.game_manager import GameManager
+
 from loguru_config import remove_default_logger, configure_master_logger, get_subsystem_logger
+
+from lib.graphics.conn_pygame_graphics import ConnPygameGraphics
+
 
 if __name__ == "__main__":
     remove_default_logger()
     configure_master_logger()
 
-    logger = get_subsystem_logger('test')
+    logger = get_subsystem_logger('Running game.')
 
-    logger.debug('Hi')
-    logger.warning('Hello')
+    game_manager = GameManager()
+
+    game_manager.main_loop()

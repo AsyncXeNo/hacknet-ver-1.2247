@@ -4,7 +4,8 @@ from typing import Union, Type
 WHITE: tuple[int, int, int, int] = (255, 255, 255, 255)
 BETTER_WHITE: tuple[int, int, int, int] = (215, 215, 215, 255)
 BLACK: tuple[int, int, int, int] = (0, 0, 0, 255)
-RED: tuple[int, int, int, int] = (255, 0, 0, 0)
+RED: tuple[int, int, int, int] = (255, 0, 0, 255)
+TRANSPARENT: tuple[int, int, int, int] = (0, 0, 0, 0)
 
 # Title Bar
 TITLEBAR_OPTIONS_PATH: str = 'application/titlebar_options.png'
@@ -98,3 +99,6 @@ MESSAGE_BOX_TIME: int = 3
 # TTY
 TTY_FONT_SIZE: int = 20
 TTY_TEXT_PADDING: tuple[int, int] = (3, 3)
+
+GAME_WIDTH = 1280
+GAME_HEIGHT = 720

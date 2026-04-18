@@ -2,7 +2,10 @@
 
 ## What to do in next session?
 
-- [ ] Write tests for file system access, and make them pass
+- Check alpha stuff for Surface blitting
+- Surface Layer handle drawing of mini surfaces like tiles, player characters into a big surface
+- Conn Pygame Graphics should render the surface layers (at game resolution) to the window at window resolution
+- Complete Main Menu (Basic)
 
 ## What to do eventually?
 
@@ -10,10 +13,11 @@
 - [X] File System
 - [X] Extended Network
 - [X] Computer Hardware Access
-- [ ] File System Access (in OS)
+- [X] File System Access (in OS)
 - [ ] Graphics
 - [ ] Applications
 - [ ] Real Life
+- [ ] Letterboxing
 - [ ] Timelining
 
 ***

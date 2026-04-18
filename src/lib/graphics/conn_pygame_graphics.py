@@ -1,39 +1,14 @@
 from __future__ import annotations
+import sys
 
 import pygame
 
 from typing import Optional
-from loguru import logger
-from lib.utils import generate_id
-from graphics.constants import IMAGE_PATH, TITLEBAR_DEFAULT_HEIGHT, DEFAULT_BOLD_FONT, DEFAULT_BOLDITALIC_FONT, DEFAULT_ITALIC_FONT, DEFAULT_REGULAR_FONT, BLACK
+from lib.graphics.surfaces import Surface, SurfaceLayer
+from lib.graphics.constants import IMAGE_PATH, DEFAULT_BOLD_FONT, DEFAULT_BOLDITALIC_FONT, DEFAULT_ITALIC_FONT, DEFAULT_REGULAR_FONT, BLACK
+from loguru_config import get_subsystem_logger
 
-
-class Surface(pygame.Surface):
-    """Adds ID and pos attributes to the pygame Surface class"""
-
-    def __init__(self, size: tuple[int, int], pos: list[int]) -> None:
-
-        super().__init__(size, pygame.SRCALPHA)
-
-        self.ID: str = f'SURFACE-{generate_id()}'
-        self.pos: list[int, int] = pos
-
-    def copy(self) -> Surface:
-        """Returns a copy of the surface"""
-
-        new = Surface(self.get_size(), self.pos)
-        new.ID = self.ID
-        new.blit(self, (0, 0))
-
-        return new
-
-    def get_surface_range(self, include_titlebar: bool = True) -> tuple[list[int], list[int]]:
-        """Returns the surface range from top-left to bottom-right"""
-
-        if not include_titlebar:
-            return ([self.pos[0], self.pos[1] + TITLEBAR_DEFAULT_HEIGHT], [self.pos[0] + self.get_width(), self.pos[1] + self.get_height() - TITLEBAR_DEFAULT_HEIGHT])
-
-        return (self.pos, [self.pos[0] + self.get_width(), self.pos[1] + self.get_height()])
+logger = get_subsystem_logger('graphics.ConnPygameGraphics')
 
 
 class ConnPygameGraphics(object):
@@ -49,9 +24,11 @@ class ConnPygameGraphics(object):
 
         self.width: int = width
         self.height: int = height
-        self.caption: str = caption
+        self.caption: str = caption 
 
-        self.window = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN) if fullscreen else pygame.display.set_mode((self.width, self.height))
+        logger.debug("Available Modes: {}", pygame.display.list_modes(32))
+
+        self.window = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN if fullscreen else 0) 
 
         pygame.display.set_caption(self.caption)
 
@@ -61,7 +38,7 @@ class ConnPygameGraphics(object):
             'bold': DEFAULT_BOLD_FONT,
             'bolditalic': DEFAULT_BOLDITALIC_FONT,
         }
-        self.render_queue: list = []
+        self.render_queue: list[SurfaceLayer] = []
 
         self.image_path: str = IMAGE_PATH
 
@@ -92,8 +69,11 @@ class ConnPygameGraphics(object):
 
         self.window.fill(BLACK)
 
-        for surface in self.render_queue:
-            self.window.blit(surface, surface.pos)
+        for surface_layer in self.render_queue:
+            frame = Surface((self.width, self.height), [0, 0])
+            pygame.transform.scale(surface_layer.__surface, (self.width, self.height), frame)
+            #TODO: LETTERBOX
+            self.window.blit(frame, [0,0])
 
         pygame.display.update()
 
