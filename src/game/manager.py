@@ -1,10 +1,10 @@
 from copy import copy
 
+import pygame
+
+from graphics.conn_pygame_graphics import conn_pygame_graphics
 from game.states.base import State
 from game.states.main_menu import MainMenuState
-from lib.graphics.conn_pygame_graphics import ConnPygameGraphics
-
-import pygame
 
 
 # class RLState(State):
@@ -22,14 +22,21 @@ import pygame
 #         super().__init__(should_draw_bg=True)
 
 
+
 class GameManager(object):
-
     def __init__(self):
-        self.state_stack: list[State] = [
-            MainMenuState()
-        ]
+        self.state_stack: list[State] = []
+        self.push_state(MainMenuState())
 
-        self.conn_pygame_graphics: ConnPygameGraphics = ConnPygameGraphics(1280, 720, 'Hacknet')
+    def push_state(self, state: State):
+        assert not any(map(lambda x: isinstance(x, state.__class__), self.state_stack)), "Cannot push two states of the same kind"
+        conn_pygame_graphics.push_surface(state.surface_layer)
+        self.state_stack.append(state)
+
+    def pop_state(self) -> State:
+        state = self.state_stack.pop()
+        conn_pygame_graphics.remove_surface(state.surface_layer)
+        return state
 
     def main_loop(self):
         while True:
@@ -57,4 +64,4 @@ class GameManager(object):
             for draw in draw_table:
                 draw.graphics_handler()
 
-            self.conn_pygame_graphics.main()
+            conn_pygame_graphics.main()

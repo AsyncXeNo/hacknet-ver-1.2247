@@ -7,7 +7,7 @@ from simulation.network.base import CIDR, SocketAddr, IPv4Addr
 from bidict import bidict
 from itertools import chain
 from loguru_config import get_subsystem_logger
-from game_timer import game_timer, GameTimer
+from game.timer import game_timer, GameTimer
 
 if TYPE_CHECKING:
     from ..network.fixed_routers import ISPRouter

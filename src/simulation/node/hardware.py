@@ -10,7 +10,7 @@ from copy import deepcopy
 from better_exceptions import LoggingException
 from loguru_config import get_subsystem_logger
 from simulation.network.base import Port, Packet
-from game_timer import game_timer
+from game.timer import game_timer
 from typing import TypeAlias
 from threading import Thread
 

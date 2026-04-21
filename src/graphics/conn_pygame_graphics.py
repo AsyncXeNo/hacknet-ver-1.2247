@@ -4,8 +4,8 @@ import sys
 import pygame
 
 from typing import Optional
-from lib.graphics.surfaces import Surface, SurfaceLayer
-from lib.graphics.constants import IMAGE_PATH, DEFAULT_BOLD_FONT, DEFAULT_BOLDITALIC_FONT, DEFAULT_ITALIC_FONT, DEFAULT_REGULAR_FONT, BLACK
+from graphics.surfaces import Surface, SurfaceLayer
+from graphics.constants import IMAGE_PATH, DEFAULT_BOLD_FONT, DEFAULT_BOLDITALIC_FONT, DEFAULT_ITALIC_FONT, DEFAULT_REGULAR_FONT, BLACK
 from loguru_config import get_subsystem_logger
 
 logger = get_subsystem_logger('graphics.ConnPygameGraphics')
@@ -44,7 +44,7 @@ class ConnPygameGraphics(object):
 
     # Helpers
 
-    def get_surface_by_id(self, surface_id: str) -> Surface:
+    def get_surface_by_id(self, surface_id: str) -> SurfaceLayer:
         """Returns a surface with given id"""
 
         try:
@@ -52,12 +52,12 @@ class ConnPygameGraphics(object):
         except IndexError:
             logger.warning(f'Surface with ID {surface_id} not found. Ignoring request')
 
-    def get_index(self, surface: Surface) -> int:
+    def get_index(self, surface: SurfaceLayer) -> int:
         """Returns the index of a passed in surface"""
 
         return self.render_queue.index(self.get_surface_by_id(surface.ID))
 
-    def get_selected(self) -> Surface | None:
+    def get_selected(self) -> SurfaceLayer | None:
         """Returns the surface at the end of the render queue"""
 
         return self.render_queue[-1] if self.render_queue else None
@@ -70,8 +70,9 @@ class ConnPygameGraphics(object):
         self.window.fill(BLACK)
 
         for surface_layer in self.render_queue:
+            surface_layer.main()
             frame = Surface((self.width, self.height), [0, 0])
-            pygame.transform.scale(surface_layer.__surface, (self.width, self.height), frame)
+            pygame.transform.scale(surface_layer.surface, (self.width, self.height), frame)
             #TODO: LETTERBOX
             self.window.blit(frame, [0,0])
 
@@ -79,25 +80,25 @@ class ConnPygameGraphics(object):
 
     # Queue Operations
 
-    def push_surface(self, surface: Surface) -> None:
+    def push_surface(self, surface: SurfaceLayer) -> None:
         """Pushes a surface to the render queue"""
 
         # rendered_surface =
-        self.render_queue.append(surface.copy())
+        self.render_queue.append(surface)
 
-    def pop_surface(self) -> Surface:
+    def pop_surface(self) -> SurfaceLayer:
         """Pops a surface from the render queue"""
 
         return self.render_queue.pop(0)
 
-    def remove_surface(self, surface: Surface) -> None:
+    def remove_surface(self, surface: SurfaceLayer) -> None:
         """Removes a specific surface from the render queue"""
 
         for a in range(len(self.render_queue)):
             if self.render_queue[a].ID == surface.ID:
                 self.render_queue.pop(a)
 
-    def select_surface(self, surface: Surface) -> None:
+    def select_surface(self, surface: SurfaceLayer) -> None:
         """Puts a render surface at the end of the queue"""
 
         surface = self.get_surface_by_id(surface.ID)
@@ -199,3 +200,6 @@ class ConnPygameGraphics(object):
         text = font.render(text, True, color, background)
 
         return surface.blit(text, pos)
+
+
+conn_pygame_graphics: ConnPygameGraphics = ConnPygameGraphics(1280, 720, 'Hacknet')

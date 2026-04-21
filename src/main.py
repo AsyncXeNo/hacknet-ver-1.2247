@@ -1,8 +1,5 @@
-from game.game_manager import GameManager
-
+from game.manager import GameManager
 from loguru_config import remove_default_logger, configure_master_logger, get_subsystem_logger
-
-from lib.graphics.conn_pygame_graphics import ConnPygameGraphics
 
 
 if __name__ == "__main__":

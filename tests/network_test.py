@@ -8,7 +8,7 @@ from simulation.network import InternetRouter, ISPRouter, BusinessRouter, HomeRo
 from simulation.network.adapter import ComputerNetworkAdapter
 from simulation.node import OperatingSystem, Computer, NetworkAdapterAccess, HardwareResource, ComputerSwitchedOff, PortInUseException
 from simulation.node.application import Application
-from game_timer import game_timer
+from game.timer import game_timer
 
 if TYPE_CHECKING:
     from simulation.network import ConsumerRouter

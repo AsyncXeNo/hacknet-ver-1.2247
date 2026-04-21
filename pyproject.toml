@@ -7,10 +7,12 @@ requires-python = ">=3.13"
 dependencies = [
     "bidict>=0.23.1",
     "loguru>=0.7.3",
-    "pygame>=2.6.1",
+    "pillow>=12.2.0",
+    "pygame-ce>=2.5.7",
     "pytest>=9.0.2",
     "pytz>=2025.2",
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+

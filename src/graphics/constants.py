@@ -1,4 +1,5 @@
-from typing import Union, Type
+from typing import Union
+from pathlib import Path
 
 # Colors
 WHITE: tuple[int, int, int, int] = (255, 255, 255, 255)
@@ -80,7 +81,18 @@ DEFAULT_BOLD_FONT: str = 'res/fonts/IBMbold.ttf'
 DEFAULT_BOLDITALIC_FONT: str = 'res/fonts/IBMbolditalic.ttf'
 
 # Images
-IMAGE_PATH: str = 'res/images/'
+ASSETS_PATH: Path = Path('./assets')
+IMAGE_PATH: Path = ASSETS_PATH / 'images'
+AUDIOS_PATH: Path = ASSETS_PATH / 'audios'
+FONTS_PATH: Path = ASSETS_PATH / 'fonts'
+
+# Font Variations
+FONT_VARIATIONS: list[str] = ['Light.ttf', 'LightItalic.ttf',
+                              'Regular.ttf', 'RegularItalic.ttf', 
+                              'SemiBold.ttf', 'SemiBoldItalic.ttf',
+                              'Bold.ttf', 'BoldItalic.ttf', 
+                              'Black.ttf', 'BlackItalic.ttf']
+
 
 # Applications
 WINDOW_OUTLINE_COLOR: tuple[int, int, int, int] = (65, 65, 65, 255)

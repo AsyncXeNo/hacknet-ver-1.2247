@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import pygame
 
-from lib.graphics.utils import generate_id
-from lib.graphics.constants import TRANSPARENT, TITLEBAR_DEFAULT_HEIGHT, GAME_WIDTH, GAME_HEIGHT
+from graphics.utils import generate_id
+from graphics.constants import TRANSPARENT, TITLEBAR_DEFAULT_HEIGHT, GAME_WIDTH, GAME_HEIGHT
+from loguru_config import get_subsystem_logger
+
+logger = get_subsystem_logger('graphics.surfaces')
 
 
 class Surface(pygame.Surface):
@@ -40,8 +43,12 @@ class SurfaceLayer(object):
         self.__surface: Surface = Surface((GAME_WIDTH, GAME_HEIGHT), [0,0])
         self.render_queue: list[Surface] = []
 
+    @property
+    def surface(self):
+        return self.__surface
+
     def main(self):
-        self.window.fill(TRANSPARENT)
+        self.__surface.fill(TRANSPARENT)
 
         for surface in self.render_queue:
             self.__surface.blit(surface, surface.pos)
@@ -49,7 +56,7 @@ class SurfaceLayer(object):
     def push_surface(self, surface: Surface) -> None:
         """Pushes a surface to the render queue"""
 
-        self.render_queue.append(surface.copy())
+        self.render_queue.append(surface)
 
     def pop_surface(self) -> Surface:
         """Pops a surface from the render queue"""
@@ -62,6 +69,15 @@ class SurfaceLayer(object):
         for a in range(len(self.render_queue)):
             if self.render_queue[a].ID == surface.ID:
                 self.render_queue.pop(a)
+        
+    def get_surface_by_id(self, surface_id: str) -> Surface | None:
+        """Returns a surface with given id"""
+
+        try:
+            return list(filter(lambda surface: surface.ID == surface_id, self.render_queue))[0]
+        except IndexError:
+            logger.warning(f'Surface with ID {surface_id} not found. Ignoring request')
+        
 
     def select_surface(self, surface: Surface) -> None:
         """Puts a render surface at the end of the queue"""
