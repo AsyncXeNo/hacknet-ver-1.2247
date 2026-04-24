@@ -89,6 +89,7 @@ FONTS_PATH: Path = ASSETS_PATH / 'fonts'
 # Font Variations
 FONT_VARIATIONS: list[str] = ['Light.ttf', 'LightItalic.ttf',
                               'Regular.ttf', 'RegularItalic.ttf', 
+                              'Medium.ttf', 'MediumItalic.ttf',
                               'SemiBold.ttf', 'SemiBoldItalic.ttf',
                               'Bold.ttf', 'BoldItalic.ttf', 
                               'Black.ttf', 'BlackItalic.ttf']

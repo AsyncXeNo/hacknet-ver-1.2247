@@ -28,7 +28,7 @@ class MainMenuState(State):
                                          align_y = AlignVer.CENTER, 
                                          color = Color("white"), 
                                          font_align=FONT_CENTER, 
-                                         font_path = FONTS.Victor.Regular, 
+                                         font_path = FONTS.Krypton.Regular, 
                                          font_size = 22)
         with Style(
             text_config = default_text_config,
@@ -36,7 +36,7 @@ class MainMenuState(State):
             padding=Gap(0,0,0,0)
         ):
             w,h = self.main_rect.width, self.main_rect.height
-            heading_text_config = dataclasses.replace(default_text_config, font_path= FONTS.Victor.Bold, font_size=36, color=Color('red'))
+            heading_text_config = dataclasses.replace(default_text_config, font_path= FONTS.Krypton.Bold, font_size=36, color=Color('red'))
             draw_box(surface=self.main_rect, rect=Rect(0, 0, w, h), fill_color=Color(15, 15, 15, 255))
             draw_text(surface=self.main_rect, rect=Rect(0, 0, w, h*0.4), text="HACKNET", text_config=heading_text_config)
 
