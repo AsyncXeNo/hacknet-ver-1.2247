@@ -9,7 +9,8 @@ wheels/
 # Virtual environments
 .venv
 
-.claude
 logs
 
 .pytest_cache
+
+.DS_Store

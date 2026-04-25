@@ -1,15 +1,27 @@
 from __future__ import annotations
+import math
+from typing import TypeVar
 from typing import TYPE_CHECKING
 from contextlib import ContextDecorator
 from enum import Enum
 from functools import wraps
+import dataclasses
 from dataclasses import dataclass
+
+from pygame import Rect
+
+from loguru_config import get_subsystem_logger
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from pygame.color import Color
 
-from assets_manager import assets_manager
+from pygame.color import Color
+
+
+logger = get_subsystem_logger('graphics.components')
+
+
+T = TypeVar('T')
 
 
 class AlignHor(Enum):
@@ -67,6 +79,40 @@ class BorderConfig():
         second_case = not self.border and (self.width is None and self.color is None)
         assert first_case or second_case, "Drawing of border doesn't correspond with values"
 
+
+def lerp(a: T, b: T, t: float):
+    assert 0.0 <= t <= 1.0, 't should be between 0 and 1'
+    assert type(a) == type(b), 'a and b should be same type when lerping'
+    if isinstance(a, (int, float)):
+        return type(a)((1 - t) * a + t * b)
+    if isinstance(a, Color):
+        return a.lerp(b, t)
+    if isinstance(a, Gap):
+        return Gap(lerp(a.l, b.l, t), 
+                   lerp(a.r, b.r, t),
+                   lerp(a.t, b.t, t),
+                   lerp(a.b, b.b, t))
+    if isinstance(a, BorderConfig):
+        assert a.border == b.border
+        return BorderConfig(a.border, 
+                            lerp(a.radius, b.radius, t), 
+                            lerp(a.width, b.width, t), 
+                            lerp(a.color, b.color, t))
+
+    if isinstance(a, TextConfig):
+        assert a.align_x == b.align_x, "align_x is not the same"
+        assert a.align_y == b.align_y, "align_y is not the same"
+        assert a.font_align == b.font_align, "font_align is not the same"
+        assert a.font_path == b.font_path, "font_path is not the same"
+
+        res = dataclasses.replace(a, color=lerp(a.color, b.color, t), font_size=lerp(a.font_size, b.font_size, t))
+        return res
+
+    if isinstance(a, Rect):
+        return Rect(lerp(a.x, b.x, t), 
+                    lerp(a.y, b.y, t), 
+                    lerp(a.w, b.w, t), 
+                    lerp(a.h, b.h, t))
 
 _style_stack: list[dict] = []
 

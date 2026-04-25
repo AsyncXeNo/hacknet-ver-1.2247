@@ -38,9 +38,15 @@ class AssetsManager(object):
         logger.info("Loading fonts...")
         for dir_name in os.listdir(FONTS_PATH):
             current_dir = FONTS_PATH / dir_name
+            if 'ds_store' in dir_name.lower():
+                logger.error("You use Mac. I'm sorry for you.")
+                continue
             assert os.path.isdir(current_dir), f'{current_dir} is not a folder'
             font_dir = dict()
             for font_file in os.listdir(current_dir):
+                if 'ds_store' in font_file.lower():
+                    logger.error("You use Mac. I'm sorry for you.")
+                    continue
                 current_font = current_dir / font_file
                 assert os.path.isfile(current_font) and font_file in FONT_VARIATIONS, f"{current_font} is not a proper font file"
                 proc_font = font_file.removesuffix(".ttf")
@@ -67,6 +73,9 @@ class AssetsManager(object):
             if os.path.isdir(current_su):
                 temp[su_name] = self.process_spritesheet_directory(current_su)
             else:
+                if 'ds_store' in su_name.lower():
+                    logger.error("You use Mac. I'm sorry for you.")
+                    continue
                 assert su_name.endswith('.png'), f'{current_su} is not a valid image'
                 try:
                     image = Image.open(current_su)
@@ -92,6 +101,13 @@ class AssetsManager(object):
                 sprites = []
                 for i in range(num_rows):
                     for j in range(num_cols):
+                        subimage = image.crop((sprite_width * j, 
+                                               sprite_height * i, 
+                                               sprite_width * (j+1),
+                                               sprite_height * (i+1)))
+                        if subimage.mode != 'RGBA':
+                            subimage = subimage.convert('RGBA')
+                        if subimage.getchannel('A').getextrema() == (0, 0): continue
                         sprite = image_surf.subsurface((sprite_width * j, 
                                                         sprite_height * i, 
                                                         sprite_width,

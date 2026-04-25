@@ -2,9 +2,9 @@
 
 ## What to do in next session?
 
-- Make sure other fonts work.
-- Optimize font rendering.
 - Continue on the main menu.
+- Implement dynamic dispatch/overloaded version of [lerp](../src/graphics/components/ui.py), which dynamically gives lerped values between any type in Style
+- Make sure style.delta is being used inside any handler 
 
 ## What to do eventually?
 

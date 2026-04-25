@@ -115,3 +115,5 @@ TTY_TEXT_PADDING: tuple[int, int] = (3, 3)
 
 GAME_WIDTH = 1280
 GAME_HEIGHT = 720
+
+FPS = 30

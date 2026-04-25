@@ -75,8 +75,8 @@ def am_module(asset_tree, monkeypatch):
         consts, 'FONT_VARIATIONS',
         ['Regular.ttf', 'Bold.ttf', 'Italic.ttf', 'BoldItalic.ttf'],
     )
-    sys.modules.pop('graphics.assets_manager', None)
-    return importlib.import_module('graphics.assets_manager')
+    sys.modules.pop('assets_manager', None)
+    return importlib.import_module('assets_manager')
 
 
 @pytest.fixture

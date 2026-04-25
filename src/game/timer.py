@@ -2,16 +2,24 @@
 class GameTimer(object):
     def __init__(self):
         # In seconds
-        self.time: float = 0
+        self._time: float = 0
 
     def delta_time(self, dt_ms: float):
-        self.time += dt_ms / 1000
+        self._time += dt_ms / 1000
 
     def update_time(self, time: float):
-        self.time = time
+        self._time = time
 
     def get_time(self) -> float:
-        return self.time
+        return self._time
+    
+    @property
+    def time(self) -> float:
+        return self._time
+    
+    @property
+    def time_ms(self) -> float:
+        return self._time * 1000
 
     @classmethod
     def calc_deltatime(cls, seconds: int=0, minutes: int=0, hours: int=0) -> float:

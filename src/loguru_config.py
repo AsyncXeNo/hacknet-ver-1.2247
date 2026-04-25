@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+import shutil
 import pytz
 import os
 import sys
@@ -28,12 +29,12 @@ now = datetime.now(pdt_tz)
 day_with_suffix = get_day_with_suffix(now.day)
 log_dir = 'logs'
 
-
 def remove_default_logger() -> None:
     logger.remove()
 
 
 def configure_master_logger() -> str:
+    shutil.rmtree(log_dir, ignore_errors=True)
     os.makedirs(log_dir, exist_ok=True)
 
     logger.add(sys.stdout,
@@ -64,7 +65,8 @@ def get_subsystem_logger(name: str) -> Logger:
                               '{level} > {message}',
                        level='TRACE',
                        encoding='utf-8',
-                       mode='w')
+                       mode='w',
+                       filter=lambda r: r['extra'].get('subsystem') == name)
         loggers[name] = new_logger
     return loggers[name]
 
