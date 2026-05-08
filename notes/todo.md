@@ -2,9 +2,9 @@
 
 ## What to do in next session?
 
-- Continue on the main menu.
-- Implement dynamic dispatch/overloaded version of [lerp](../src/graphics/components/ui.py), which dynamically gives lerped values between any type in Style
-- Make sure style.delta is being used inside any handler 
+- Continue to real life state
+- Start some work on dialogue, and applications
+- Real life state should store all computers and give what computer we are opening to Virtual State
 
 ## What to do eventually?
 

@@ -19,7 +19,7 @@ from simulation.network.base import Port, Packet, SocketAddr
 from enum import Enum
 from threading import Thread
 from collections import defaultdict
-from utils import FunctionGroup
+from utils.misc import FunctionGroup
 
 
 class SoftwareResource(Enum):

@@ -45,6 +45,7 @@
         ".venv": true,
         "uv.lock": true,
         "**/__pycache__": true,
+        ".pytest_cache": true
     },
     "python.defaultInterpreterPath": "/Users/kartik/.cache/uv/environments-v2/inject-spritesheet-metadata-9d57cfbc4a9b1f85/bin/python3"
 }

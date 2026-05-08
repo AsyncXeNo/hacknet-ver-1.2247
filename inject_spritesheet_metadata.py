@@ -9,6 +9,7 @@
 import os
 from PIL import Image, PngImagePlugin, UnidentifiedImageError
 
+from pydantic import DirectoryPath
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
