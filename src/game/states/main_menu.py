@@ -34,7 +34,7 @@ class MainMenuState(State):
 
         heading_text_config = dataclasses.replace(default_text_config, font_path= FONTS.Krypton.Bold, font_size=36, color=Color('red'))
         label_style = LabelStyle(Rect(0, 0, w, h*0.4), heading_text_config, Gap(0,0,0,0))
-        self.add_component(Label(self.main_surface, "HACKNET", label_style))
+        self.add_component('title', Label(self.main_surface, "HACKNET", label_style))
 
         texts = ["New Game", "Continue", "Options", "Quit"]
         incr = h * 0.10
@@ -52,7 +52,7 @@ class MainMenuState(State):
                                        border_config,
                                        Gap(0, 0, 0, 0))
             curr += incr
-            self.add_component(Button(self.main_surface, 
+            self.add_component(text.lower().replace(' ', '_') + "_button", Button(self.main_surface, 
                                       text, 
                                       button_style, 
                                       new_game if i == 0 else lambda button: None, 

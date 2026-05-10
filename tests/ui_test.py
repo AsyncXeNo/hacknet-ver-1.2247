@@ -133,20 +133,20 @@ class TestComponentBase:
     def test_add_component_appends(self, parent):
         c = _NullComponent(parent, lambda: Rect(0, 0, 10, 10))
         child = _NullComponent(parent, lambda: Rect(0, 0, 5, 5))
-        c.add_component(child)
-        assert child in c.sub_components
+        c.add_component('child', child)
+        assert c.components.child is child
 
     def test_events_dispatch_to_children_with_offset(self, parent):
         c = _NullComponent(parent, lambda: Rect(0, 0, 100, 100))
         child = _NullComponent(parent, lambda: Rect(15, 25, 10, 10))
-        c.add_component(child)
+        c.add_component('child', child)
         c.events_handler([], (0, 0))
         assert child.events_seen[-1][1] == (15, 25)
 
     def test_graphics_dispatch_to_children(self, parent):
         c = _NullComponent(parent, lambda: Rect(0, 0, 10, 10))
         child = _NullComponent(parent, lambda: Rect(0, 0, 5, 5))
-        c.add_component(child)
+        c.add_component('child', child)
         c.graphics_handler()
         assert child.draws == 1
 

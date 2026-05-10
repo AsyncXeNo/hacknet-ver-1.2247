@@ -1,4 +1,5 @@
 from copy import copy
+from types import SimpleNamespace
 
 import pygame
 
@@ -54,6 +55,18 @@ class GameManager(object):
             current.events_handler(events)
 
             conn_pygame_graphics.main()
+
+    @property
+    def states(self) -> SimpleNamespace:
+        from game.states.rl import RLState
+        from game.states.main_menu import MainMenuState
+        from game.states.virtual import VirtualState
+        
+        namespace = SimpleNamespace()
+        state_name_to_class = { RLState : 'rl', MainMenuState: 'menu', VirtualState: 'virtual' }
+        for state in self.state_stack:
+            namespace.__setattr__(state_name_to_class[type(state)], state)
+        return namespace
 
 
 game_manager = GameManager()

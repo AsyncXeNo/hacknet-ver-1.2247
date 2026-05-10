@@ -19,6 +19,12 @@ class Surface(pygame.Surface):
         self.ID: str = f'SURFACE-{generate_id()}'
         self.pos: list[int] = pos
 
+    @staticmethod
+    def from_pygame_surface(source: pygame.Surface, pos: list[int]) -> Surface:
+        inst = Surface(source.get_size(), pos)
+        inst.blit(source, (0, 0))
+        return inst
+
     def get_surface_range(self, include_titlebar: bool = True) -> tuple[list[int], list[int]]:
         """Returns the surface range from top-left to bottom-right"""
 

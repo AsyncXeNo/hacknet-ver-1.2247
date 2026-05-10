@@ -15,6 +15,7 @@ def _display():
 
 from game.states.main_menu import MainMenuState, new_game
 from game.states.rl import RLState
+from game.objects.player import Player
 from graphics.components.ui import Button, Label
 from graphics.constants import GAME_WIDTH, GAME_HEIGHT
 
@@ -32,28 +33,32 @@ class TestMainMenuState:
 
     def test_has_heading_label_and_four_buttons(self):
         s = MainMenuState()
-        labels = [c for c in s.components if isinstance(c, Label)]
-        buttons = [c for c in s.components if isinstance(c, Button)]
+        components = vars(s.components).values()
+        labels = [c for c in components if isinstance(c, Label)]
+        buttons = [c for c in components if isinstance(c, Button)]
         assert len(labels) == 1
         assert len(buttons) == 4
 
     def test_heading_label_text(self):
         s = MainMenuState()
-        labels = [c for c in s.components if isinstance(c, Label)]
-        assert labels[0].text == "HACKNET"
+        assert s.components.title.text == "HACKNET"
 
     def test_button_labels_in_expected_order(self):
         s = MainMenuState()
-        buttons = [c for c in s.components if isinstance(c, Button)]
-        assert [b.text for b in buttons] == ["New Game", "Continue", "Options", "Quit"]
+        actual = [
+            s.components.new_game_button.text,
+            s.components.continue_button.text,
+            s.components.options_button.text,
+            s.components.quit_button.text,
+        ]
+        assert actual == ["New Game", "Continue", "Options", "Quit"]
 
     def test_new_game_button_wires_real_callback(self):
-        """Buttons 1..3 are no-op lambdas; button 0 is the module-level
-        `new_game` function that pops main menu and pushes RLState."""
+        """`new_game_button` is wired to the module-level `new_game` function
+        (pops main menu and pushes RLState); other buttons are no-op lambdas."""
         s = MainMenuState()
-        buttons = [c for c in s.components if isinstance(c, Button)]
-        assert buttons[0].on_click is new_game
-        assert buttons[1].on_click is not new_game
+        assert s.components.new_game_button.on_click is new_game
+        assert s.components.continue_button.on_click is not new_game
 
     def test_events_handler_runs_without_error(self, monkeypatch):
         s = MainMenuState()
@@ -69,9 +74,9 @@ class TestRLState:
     def test_constructs_without_error(self):
         RLState()
 
-    def test_loads_idle_sprite_frame(self):
+    def test_has_player_component(self):
         s = RLState()
-        assert isinstance(s.img, pygame.Surface)
+        assert isinstance(s.components.player, Player)
 
     def test_main_surface_sized_to_game(self):
         s = RLState()

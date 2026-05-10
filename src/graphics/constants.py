@@ -1,12 +1,14 @@
+from types import SimpleNamespace
 from typing import Union
 from pathlib import Path
+from pygame.color import Color
 
 # Colors
-WHITE: tuple[int, int, int, int] = (255, 255, 255, 255)
-BETTER_WHITE: tuple[int, int, int, int] = (215, 215, 215, 255)
-BLACK: tuple[int, int, int, int] = (0, 0, 0, 255)
-RED: tuple[int, int, int, int] = (255, 0, 0, 255)
-TRANSPARENT: tuple[int, int, int, int] = (0, 0, 0, 0)
+WHITE: Color = Color(255, 255, 255, 255)
+BETTER_WHITE: Color = Color(215, 215, 215, 255)
+BLACK: Color = Color(0, 0, 0, 255)
+RED: Color = Color(255, 0, 0, 255)
+TRANSPARENT: Color = Color(0, 0, 0, 0)
 
 # Title Bar
 TITLEBAR_OPTIONS_PATH: str = 'application/titlebar_options.png'
@@ -25,62 +27,24 @@ APPLICATION_MIN_HEIGHT = 100
 
 # Formatting
 
-CODE_FORMATTING: dict[str, str] = {
+CODE_FORMATTING: SimpleNamespace = SimpleNamespace(
+    COLOR_CHANGE = lambda color: f'⸸[c:{color.r},{color.g},{color.b},{color.a}]',
+    COLOR_RESET = lambda: '⸸[c:reset}',
 
-    'BLACK': '⸸{c:black}',
-    'RED': '⸸{c:red}',
-    'GREEN': '⸸{c:green}',
-    'YELLOW': '⸸{c:yellow}',
-    'BLUE': '⸸{c:blue}',
-    'CYAN': '⸸{c:cyan}',
-    'MAGENTA': '⸸{c:magenta}',
-    'WHITE': '⸸{c:white}',
-    'RESET': '⸸{c:reset}⸸{s:reset}',
-    'REGULAR': '⸸{s:regular}',
-    'BOLD': '⸸{s:bold}',
-    'ITALIC': '⸸{s:italic}',
-    'BOLD_ITALIC': '⸸{s:bold-italic}',
-
-    'COLOR_RESET': '⸸{c:reset}',
-    'STYLE_RESET': '⸸{s:reset}'
-
-}
-
-TEXT_CODES: dict[str, Union[tuple[int, int, int], str]] = {
-
-    '⸸{c:black}': (0, 0, 0), 
-    '⸸{c:red}': (255, 0, 0), 
-    '⸸{c:green}': (0, 255, 0), 
-    '⸸{c:yellow}': (255, 255, 0), 
-    '⸸{c:blue}': (0, 0, 255), 
-    '⸸{c:magenta}': (255, 0, 255), 
-    '⸸{c:cyan}': (0, 255, 255), 
-    '⸸{c:white}': (255, 255, 255),
+    SIZE_CHANGE = lambda size: f'⸸[s:{size}]', 
+    SIZE_DIFF = lambda delta: f'⸸[sd:{delta}]', 
+    SIZE_RESET = lambda: '⸸[s:reset]',
     
-    '⸸{s:regular}': 'regular', 
-    '⸸{s:bold}': 'bold', 
-    '⸸{s:italic}': 'italic',
-    '⸸{s:bold-italic}': 'bolditalic'
-    
-}
+    FONT_CHANGE = lambda font: f'⸸[f:{font}]',
+    FONT_RESET = lambda: '⸸[f:reset]',
+
+    RESET= lambda: '⸸[c:reset] ⸸[f:reset] ⸸[s:reset]'
+)
 
 TEXT_ESCAPE_CHAR: str = '⸸'
 
-UM_FNT_PT_FACTOR: tuple[float, float] = (1 / 2, 1)  # Ubuntu Mono Font size point conversion factors
-IBM_FNT_PT_FACTOR: tuple[float, float] = (3 / 5, 1)  # IBM Plex Mono Font size point conversion factors
 
-# Fonts
-# DEFAULT_REGULAR_FONT: str = 'res/fonts/regular.ttf'
-# DEFAULT_ITALIC_FONT: str = 'res/fonts/italic.ttf'
-# DEFAULT_BOLD_FONT: str = 'res/fonts/bold.ttf'
-# DEFAULT_BOLDITALIC_FONT: str = 'res/fonts/bolditalic.ttf'
-
-DEFAULT_REGULAR_FONT: str = 'res/fonts/IBMregular.ttf'
-DEFAULT_ITALIC_FONT: str = 'res/fonts/IBMitalic.ttf'
-DEFAULT_BOLD_FONT: str = 'res/fonts/IBMbold.ttf'
-DEFAULT_BOLDITALIC_FONT: str = 'res/fonts/IBMbolditalic.ttf'
-
-# Images
+# Assets
 ASSETS_PATH: Path = Path('./assets')
 IMAGE_PATH: Path = ASSETS_PATH / 'images'
 AUDIOS_PATH: Path = ASSETS_PATH / 'audios'
@@ -93,7 +57,6 @@ FONT_VARIATIONS: list[str] = ['Light.ttf', 'LightItalic.ttf',
                               'SemiBold.ttf', 'SemiBoldItalic.ttf',
                               'Bold.ttf', 'BoldItalic.ttf', 
                               'Black.ttf', 'BlackItalic.ttf']
-
 
 # Applications
 WINDOW_OUTLINE_COLOR: tuple[int, int, int, int] = (65, 65, 65, 255)

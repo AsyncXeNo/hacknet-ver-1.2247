@@ -72,7 +72,7 @@ class Player(Component):
 
         super().__init__(parent_surface, self.sprite.rect)
         
-        self.add_component(self.sprite)
+        self.add_component('player_sprite', self.sprite)
 
     def events_handler(self, events: list[Event], mouse_offset: tuple[int, int]) -> None:
         new_time = game_timer.time_ms

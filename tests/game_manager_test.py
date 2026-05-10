@@ -45,13 +45,13 @@ class TestStateBase:
 
     def test_components_starts_empty(self):
         s = _ConcreteState()
-        assert s.components == []
+        assert vars(s.components) == {}
 
     def test_add_component_appends(self):
         s = _ConcreteState()
         marker = object()
-        s.add_component(marker)
-        assert marker in s.components
+        s.add_component('Marker', marker)
+        assert s.components.Marker is marker
 
 
 # ─── GameManager ─────────────────────────────────────────────────────────────
